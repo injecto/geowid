@@ -1,0 +1,13 @@
+<project name="geowid.etc" default="compile.js" basedir="./web/">
+    <description>
+        Define target to compile js with Google Closure Compiler
+    </description>
+
+    <property name="script" value="geowid.js"/>
+
+    <target name="compile.js">
+        <java jar="../3rd/compiler.jar" fork="true">
+            <arg line="--compilation_level SIMPLE_OPTIMIZATIONS --js to_compile/${script} --js_output_file js/${script}"/>
+        </java>
+    </target>
+</project>

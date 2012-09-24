@@ -1,0 +1,7 @@
+.idea/
+*.iml
+3rd/
+geowidd/3rd/
+geowidd/resources/GeoLiteCity.dat
+gewoidsrv/3rd/
+out/

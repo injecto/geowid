@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app xmlns="http://java.sun.com/xml/ns/javaee"
+           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+           xsi:schemaLocation="http://java.sun.com/xml/ns/javaee
+		  http://java.sun.com/xml/ns/javaee/web-app_3_0.xsd"
+           version="3.0">
+
+    <servlet>
+        <servlet-name>GeowidServlet</servlet-name>
+        <servlet-class>com.ecwid.geowid.server.GeowidServlet</servlet-class>
+
+        <init-param>
+            <param-name>log-stream-host</param-name>
+            <param-value>127.0.0.1</param-value>
+        </init-param>
+
+        <init-param>
+            <param-name>log-stream-port</param-name>
+            <param-value>9969</param-value>
+        </init-param>
+
+        <init-param>
+            <param-name>time-out</param-name>
+            <param-value>2000</param-value>
+        </init-param>
+
+        <init-param>
+            <param-name>chunk-size</param-name>
+            <param-value>50</param-value>
+        </init-param>
+    </servlet>
+
+    <servlet-mapping>
+        <servlet-name>GeowidServlet</servlet-name>
+        <url-pattern>/get/*</url-pattern>
+    </servlet-mapping>
+</web-app>

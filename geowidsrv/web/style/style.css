@@ -1,0 +1,75 @@
+body {
+    padding: 0;
+    margin: 0;
+}
+
+html, body, #map {
+    height: 100%;
+}
+
+#wait {
+    position: absolute;
+    height: 100%;
+    width: 100%;
+    top: 0;
+    left: 0;
+    background-color: black;
+    opacity: 0.75;
+    display: none;
+    z-index: 1001;
+}
+
+#waitpic {
+    position: absolute;
+    height: 64px;
+    width: 64px;
+    top: 50%;
+    left: 50%;
+    margin-top: -64px;
+    margin-left: -32px;
+}
+
+#message {
+    font-size: 36pt;
+    text-align: center;
+    color: #ffffff;
+    position: absolute;
+    top: 51%;
+    width: 100%;
+}
+
+#view-dialog {
+    display: none;
+    opacity: 0.75;
+    border-radius: 10px;
+    position: absolute;
+    background-color: black;
+    padding: 5px;
+    z-index: 8;
+}
+
+.leaflet-control-view {
+    border-radius: 7px;
+    padding: 5px;
+    background: rgba(0, 0, 0, 0.25);
+}
+
+.leaflet-control-view a {
+    background-color: rgba(255, 255, 255, 0.75);
+    background-position: 50% 50%;
+    background-repeat: no-repeat;
+    display: block;
+    border-radius: 4px;
+    width: 18px;
+    height: 18px;
+    background-color: #fff;
+    opacity: 0.5;
+}
+
+.leaflet-control-view-button {
+    background-image: url(../pics/settings.png);
+}
+
+.text {
+    font-family: 'Dosis', sans-serif;
+}

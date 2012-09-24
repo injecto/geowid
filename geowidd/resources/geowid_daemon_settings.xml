@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<settings>
+    <log-file-catalog>/home/vio/IdeaProjects/loggen/out/artifacts/loggen_jar</log-file-catalog>
+    <log-file-pattern>ecwid\.log</log-file-pattern>
+    <update-period>1000</update-period>
+    <ip-resolver-cache-file></ip-resolver-cache-file>
+    <ip-resolver-rec-ttl>604800</ip-resolver-rec-ttl>
+    <connection-port>9969</connection-port>
+    <events>
+        <event>
+            <type>def</type>
+            <pattern>.+\b((?:\d{1,3}\.){3}\d{1,3})\b\s+script.js.+</pattern>
+        </event>
+        <event>
+            <type>mob</type>
+            <pattern>.+\b((?:\d{1,3}\.){3}\d{1,3})\b\s+mobile:.+</pattern>
+        </event>
+        <event>
+            <type>api</type>
+            <pattern>.+\b((?:\d{1,3}\.){3}\d{1,3})\b\s+api:.+</pattern>
+        </event>
+    </events>
+</settings>
