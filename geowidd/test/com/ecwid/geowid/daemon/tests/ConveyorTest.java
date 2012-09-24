@@ -36,7 +36,7 @@ public class ConveyorTest {
         LinkedList<Event> events = new LinkedList<Event>();
         events.add(event);
 
-        RecordParser parser = new RecordParser(tailReader.getRecordsQueue(), events);
+        RecordParser parser = new RecordParser(tailReader.getRecordsQueue(), events, false);
         writer.write("some string\n");
         writer.flush();
         Thread.sleep(1000);

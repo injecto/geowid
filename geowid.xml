@@ -492,6 +492,7 @@
     <copy file="${basedir}/geowidd/resources/geowid_daemon_settings.xml" tofile="${artifact.output.geowidd}/geowid_daemon_settings.xml"/>
     <copy file="${basedir}/geowidd/scripts/geowidd.sh" tofile="${artifact.output.geowidd}/geowidd.sh"/>
     <copy file="${basedir}/geowidd/resources/GeoLiteCity.dat" tofile="${artifact.output.geowidd}/GeoLiteCity.dat"/>
+    <copy file="${basedir}/geowidd/3rd/commons-daemon-1.0.10.jar" tofile="${artifact.output.geowidd}/commons-daemon-1.0.10.jar"/>
   </target>
   
   <target name="artifact.geowidd:jar" depends="init.artifacts, compile.module.geowidd, compile.module.geowid" description="Build &#39;geowidd:jar&#39; artifact">
@@ -513,6 +514,9 @@
   <target name="artifact.root" depends="init.artifacts, compile.module.geowidsrv, compile.module.geowid" description="Build &#39;root&#39; artifact">
     <property name="artifact.temp.output.root" value="${artifacts.temp.dir}/root"/>
     <mkdir dir="${artifact.temp.output.root}"/>
+    <ant antfile="compile-js-target.xml" target="compile.js" dir="${basedir}/geowidsrv">
+      <property name="artifact.output.path" value="${artifact.temp.output.root}"/>
+    </ant>
     <zip destfile="${temp.jar.path.root.war}">
       <zipfileset dir="${basedir}/geowidsrv/web"/>
       <zipfileset file="${basedir}/geowidsrv/web/WEB-INF/web.xml" prefix="WEB-INF"/>

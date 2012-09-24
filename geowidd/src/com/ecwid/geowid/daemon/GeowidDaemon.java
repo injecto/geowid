@@ -29,7 +29,7 @@ public class GeowidDaemon implements Daemon {
 
         TailReader tailReader = new TailReader(settings.getLogFileCatalog(), settings.getLogFilePattern(),
                 settings.getUpdatePeriod());
-        RecordParser parser = new RecordParser(tailReader.getRecordsQueue(), settings.getEvents());
+        RecordParser parser = new RecordParser(tailReader.getRecordsQueue(), settings.getEvents(), true);
         IpToLocationConverter converter = new IpToLocationConverter(parser.getIpQueue(), settings.getCacheFilePath(),
                 settings.getCacheRecordTtl(), args[1]);
 
