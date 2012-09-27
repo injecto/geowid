@@ -35,22 +35,31 @@ public class PointsBuffer {
      * начать заполнение буфера
      */
     public void fillBuffer() {
-        Thread worker = new Thread(new Runnable() {
+        worker = new Thread(new Runnable() {
             @Override
             public void run() {
-                while (!Thread.currentThread().isInterrupted()) {
-                    try {
-                        collect();
-                    } catch (IOException e) {
-                        logger.warn("Remote log host connection error. Try again...", e);
-                    } catch (ClassNotFoundException e) {
-                        logger.warn("Remote log host response deserialization error. Try again...", e);
-                    }
-                }
+                collect();
             }
-        });
-        worker.setDaemon(true);
+        }, "geowidsrv_points_buffer");
         worker.start();
+    }
+
+    /**
+     * закрыть буфер
+     * @return true в случае успеха
+     */
+    public boolean close() {
+        if (null == worker)
+            return true;
+
+        worker.interrupt();
+        boolean interrupt = Thread.interrupted();
+        try {
+            worker.join();
+        } catch (InterruptedException e) {
+            return false;
+        }
+        return true;
     }
 
     /**
@@ -79,29 +88,84 @@ public class PointsBuffer {
 
     /**
      * собрать данные от удаленного хоста в буфер
-     * @throws IOException в случае проблем с сокетом
-     * @throws ClassNotFoundException в случае проблем с десериализацией
      */
-    private void collect() throws IOException, ClassNotFoundException {
-        Socket socket = new Socket(logHost, logPort);
-        ObjectInputStream inputStream = new ObjectInputStream(socket.getInputStream());
-
+    private void collect() {
         while (!Thread.currentThread().isInterrupted()) {
-            Point point = (Point) inputStream.readObject();
-            if (null != point) {
-                chunk.add(point);
-                if (chunk.size() >= chunkSize) {
-                    String slice = gson.toJson(chunk);
-                    chunk.clear();
+            Socket socket = null;
+            try {
+                socket = new Socket(logHost, logPort);
+            } catch (IOException e) {
+                logger.warn("Can't create socket to connect to geowidd-service. Try again...");
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException ex) {
+                    break;
+                }
+                continue;
+            }
 
-                    for (IPointListener listener : listeners)
-                        listener.onSlice(slice);
+            ObjectInputStream inputStream = null;
+            try {
+                inputStream = new ObjectInputStream(socket.getInputStream());
+            } catch (IOException e) {
+                logger.warn("Can't create socket input stream. Try again...");
+                try {
+                    socket.close();
+                } catch (IOException ex) {
+                    logger.warn("Can't close socket. Use new socket");
+                }
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException ex) {
+                    break;
+                }
+                continue;
+            }
+
+            while (!Thread.currentThread().isInterrupted()) {
+                Point point = null;
+                try {
+                    point = (Point) inputStream.readObject();
+                } catch (IOException e) {
+                    logger.warn("I/O error when read from input stream. Re-create socket...");
+                    try {
+                        inputStream.close();
+                        socket.close();
+                    } catch (IOException ex) {
+                        logger.warn("Can't close socket resources");
+                    }
+                    break;
+                } catch (ClassNotFoundException e) {
+                    logger.warn("Deserialization error", e);
+                    continue;
+                }
+
+                if (null != point) {
+                    chunk.add(point);
+                    if (chunk.size() >= chunkSize) {
+                        String slice = gson.toJson(chunk);
+                        chunk.clear();
+
+                        for (IPointListener listener : listeners)
+                            listener.onSlice(slice);
+                    }
                 }
             }
-        }
 
-        inputStream.close();
-        socket.close();
+            try {
+                if (null != inputStream)
+                    inputStream.close();
+            } catch (IOException e) {
+                logger.warn("Can't close socket input stream");
+            }
+
+            try {
+                if (null != socket && !socket.isClosed())
+                    socket.close();
+            } catch (IOException e) {
+                logger.warn("Can't close socket");
+            }
+        }
     }
 
     private final List<Point> chunk;
@@ -109,7 +173,8 @@ public class PointsBuffer {
     private final String logHost;
     private final int logPort;
 
-    Gson gson = new Gson();
+    private final Gson gson = new Gson();
+    private Thread worker = null;
 
     private final List<IPointListener> listeners = Collections.synchronizedList(new LinkedList<IPointListener>());
 

@@ -514,7 +514,7 @@
   <target name="artifact.root" depends="init.artifacts, compile.module.geowidsrv, compile.module.geowid" description="Build &#39;root&#39; artifact">
     <property name="artifact.temp.output.root" value="${artifacts.temp.dir}/root"/>
     <mkdir dir="${artifact.temp.output.root}"/>
-    <ant antfile="compile-js-target.xml" target="compile.js" dir="${basedir}/geowidsrv">
+    <ant antfile="jscompile.xml" target="compile" dir="${basedir}/geowidsrv">
       <property name="artifact.output.path" value="${artifact.temp.output.root}"/>
     </ant>
     <zip destfile="${temp.jar.path.root.war}">
@@ -522,6 +522,7 @@
       <zipfileset file="${basedir}/geowidsrv/web/WEB-INF/web.xml" prefix="WEB-INF"/>
       <zipfileset dir="${geowidsrv.output.dir}" prefix="WEB-INF/classes"/>
       <zipfileset dir="${geowid.output.dir}" prefix="WEB-INF/classes"/>
+      <zipfileset file="${basedir}/geowidsrv/resources/log4j2.xml" prefix="WEB-INF/classes"/>
       <zipfileset file="${basedir}/3rd/log4j-core-2.0-alpha2.jar" prefix="WEB-INF/lib"/>
       <zipfileset file="${basedir}/3rd/log4j-api-2.0-alpha2.jar" prefix="WEB-INF/lib"/>
       <zipfileset file="${basedir}/geowidsrv/3rd/gson-2.2.2.jar" prefix="WEB-INF/lib"/>

@@ -24,13 +24,12 @@ public class TailReader {
         this.logFileNamePattern = logFileNamePattern;
         this.updatePeriod = updatePeriod;
 
-        Thread worker = new Thread(new Runnable() {
+        worker = new Thread(new Runnable() {
             @Override
             public void run() {
                 collect();
             }
-        });
-        worker.setDaemon(true);
+        }, "geowidd_tail_reader");
         worker.start();
     }
 
@@ -40,6 +39,21 @@ public class TailReader {
      */
     public LinkedBlockingQueue<String> getRecordsQueue() {
         return recordsQueue;
+    }
+
+    /**
+     * остановить чтение лога
+     * @return true в случае успеха, иначе false
+     */
+    public boolean close() {
+        worker.interrupt();
+        boolean interrupt = Thread.interrupted();
+        try {
+            worker.join();
+        } catch (InterruptedException e) {
+            return false;
+        }
+        return true;
     }
 
     /**
@@ -191,6 +205,8 @@ public class TailReader {
     private final int maxLogSearchAttempt = 100;    // максимальное количество попыток поиска лога
 
     private final LinkedBlockingQueue<String> recordsQueue = new LinkedBlockingQueue<String>();
+
+    private final Thread worker;
 
     private static final Logger logger = LogManager.getLogger(TailReader.class);
 }

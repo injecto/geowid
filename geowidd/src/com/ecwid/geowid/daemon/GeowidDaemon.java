@@ -12,12 +12,13 @@ import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketTimeoutException;
 
 public class GeowidDaemon implements Daemon {
 
     public static void main(String[] args) {
         if (args.length != 2) {
-            logger.fatal("Using: java -jar geowidd.jar settings_file maxmind_db_file");
+            logger.fatal("Using: geowidd.jar settings_file maxmind_db_file");
             return;
         }
 
@@ -29,43 +30,92 @@ public class GeowidDaemon implements Daemon {
 
         TailReader tailReader = new TailReader(settings.getLogFileCatalog(), settings.getLogFilePattern(),
                 settings.getUpdatePeriod());
+
         RecordParser parser = new RecordParser(tailReader.getRecordsQueue(), settings.getEvents(), true);
+
         IpToLocationConverter converter = new IpToLocationConverter(parser.getIpQueue(), settings.getCacheFilePath(),
                 settings.getCacheRecordTtl(), args[1]);
 
-        ServerSocket serverSocket;
         try {
-            serverSocket = new ServerSocket(settings.getPort());
+            openServerSocket();
         } catch (IOException e) {
             logger.fatal("Could not listen on port {}", settings.getPort());
             return;
         }
 
-        Socket clientSocket;
-        ObjectOutputStream out;
+        Socket clientSocket = null;
+        ObjectOutputStream out = null;
+
         while (!Thread.currentThread().isInterrupted()) {
             try {
                 clientSocket = serverSocket.accept();
-                converter.getPointsQueue().clear();
-                out = new ObjectOutputStream(clientSocket.getOutputStream());
+            } catch (SocketTimeoutException e) {
+                continue;
+            } catch (IOException e) {
+                logger.error("I/O error when waiting for client connection. Try reopen server socket...");
+                try {
+                    reopenServerSocket();
+                } catch (IOException ex) {
+                    logger.fatal("Server socket is broken. Shutting down...", ex);
+                    break;
+                }
+                logger.info("Server socket reopened");
+                continue;
+            }
 
+            converter.getPointsQueue().clear();
+
+            try {
+                out = new ObjectOutputStream(clientSocket.getOutputStream());
+            } catch (IOException e) {
+                logger.warn("I/O error when creating client output stream. Try again...");
+                try {
+                    clientSocket.close();
+                } catch (IOException ex) {
+                    logger.warn("Can't close client socket. Use new client socket");
+                }
+                continue;
+            }
+
+            try {
                 while (!Thread.currentThread().isInterrupted())
                     out.writeObject(converter.getPointsQueue().take());
-
-                out.close();
-                clientSocket.close();
-            } catch (IOException e) {
-                logger.warn("Socket I/O error", e);
-                continue;
             } catch (InterruptedException e) {
                 break;
+            } catch (IOException e) {
+                logger.warn("I/O error when sending data to client. Re-create client socket...");
+                try {
+                    out.close();
+                } catch (IOException ex) {
+                    logger.warn("Can't close client output stream. Use new stream");
+                }
+
+                try {
+                    clientSocket.close();
+                } catch (IOException ex) {
+                    logger.warn("Can't close client socket. Use new client socket");
+                }
+                continue;
             }
+        }
+
+        if (!(converter.close() && parser.close() && tailReader.close()))
+            logger.warn("Several service threads not die. Sorry");
+
+        try {
+            if (null != out)
+                out.close();
+
+            if (null != clientSocket && !clientSocket.isClosed())
+                clientSocket.close();
+        } catch (IOException e) {
+            logger.warn("Can't close client socket. Sorry");
         }
 
         try {
             serverSocket.close();
         } catch (IOException e) {
-            logger.warn("Cannot close listen socket");
+            logger.error("Can't close server socket");
         }
     }
 
@@ -83,7 +133,7 @@ public class GeowidDaemon implements Daemon {
             public void run() {
                 main(context.getArguments());
             }
-        });
+        }, "geowidd_main");
         mainThread.start();
     }
 
@@ -91,6 +141,7 @@ public class GeowidDaemon implements Daemon {
     public void stop() throws Exception {
         logger.info("Stopping...");
         mainThread.interrupt();
+        mainThread.join();
     }
 
     @Override
@@ -98,10 +149,27 @@ public class GeowidDaemon implements Daemon {
         logger.info("Done");
     }
 
+    private static void openServerSocket() throws IllegalArgumentException, IOException {
+        if (null == settings)
+            throw new IllegalArgumentException("Need app settings");
+
+        serverSocket = new ServerSocket(settings.getPort(), 1);
+        serverSocket.setSoTimeout(250);
+    }
+
+    private static void reopenServerSocket() throws IllegalArgumentException, IOException {
+        try {
+            serverSocket.close();
+        } catch (IOException e) {
+            throw new IOException("Can't close server socket", e);
+        }
+        openServerSocket();
+    }
+
     private DaemonContext context;
-
     private static Thread mainThread;
-
     private static Settings settings;
+    private static ServerSocket serverSocket;
+
     private static final Logger logger = LogManager.getLogger(GeowidDaemon.class);
 }

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<project name="geowidsrv" basedir="." default="compile">
+
+    <taskdef name="jscomp" classname="com.google.javascript.jscomp.ant.CompileTask"
+             classpath="${basedir}/3rd/compiler.jar"/>
+
+    <target name="compile">
+        <jscomp compilationLevel="simple" warning="quiet"
+                debug="false" output="${basedir}/web/js/geowid.js">
+            <sources dir="${basedir}/web/src">
+                <file name="geowid-src.js"/>
+            </sources>
+        </jscomp>
+
+        <jscomp compilationLevel="simple" warning="quiet"
+                debug="false" output="${basedir}/web/js/rlayer.js">
+            <sources dir="${basedir}/web/src">
+                <file name="rlayer-src.js"/>
+            </sources>
+        </jscomp>
+    </target>
+
+</project>

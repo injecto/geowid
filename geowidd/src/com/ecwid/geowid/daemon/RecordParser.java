@@ -18,19 +18,20 @@ public class RecordParser {
     /**
      * ctor
      * @param recordsQueue очередь записей
+     * @param events необходимые события
+     * @param filterSearchBots true - фильтровать записи от запросов поисковых роботов
      */
     public RecordParser(LinkedBlockingQueue<String> recordsQueue, List<Event> events, boolean filterSearchBots) {
         this.recordsQueue = recordsQueue;
         this.events = events;
         this.filterSearchBots = filterSearchBots;
 
-        Thread worker = new Thread(new Runnable() {
+        worker = new Thread(new Runnable() {
             @Override
             public void run() {
                 parse();
             }
-        });
-        worker.setDaemon(true);
+        }, "geowidd_parser");
         worker.start();
     }
 
@@ -40,6 +41,21 @@ public class RecordParser {
      */
     public LinkedBlockingQueue<Ip> getIpQueue() {
         return ipQueue;
+    }
+
+    /**
+     * остановить парсинг
+     * @return true в случае успеха, иначе false
+     */
+    public boolean close() {
+        worker.interrupt();
+        boolean interrupt = Thread.interrupted();
+        try {
+            worker.join();
+        } catch (InterruptedException e) {
+            return false;
+        }
+        return true;
     }
 
     private void parse() {
@@ -65,6 +81,8 @@ public class RecordParser {
     private final LinkedBlockingQueue<Ip> ipQueue = new LinkedBlockingQueue<Ip>();
     private final LinkedBlockingQueue<String> recordsQueue;
     private final List<Event> events;
+
+    private final Thread worker;
 
     private boolean filterSearchBots = false;
     private SearchBotAgent agent = new SearchBotAgent()

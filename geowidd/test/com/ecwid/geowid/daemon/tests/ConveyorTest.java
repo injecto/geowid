@@ -14,7 +14,7 @@ import static junit.framework.Assert.assertTrue;
 
 /**
  * Тест конвейера-обработчика записей лога:
- * классов TailReader, RecordParser и IpToLocationConverter
+ * классов TailReader и RecordParser
  */
 public class ConveyorTest {
     @Test
@@ -45,6 +45,9 @@ public class ConveyorTest {
         writer.flush();
         Thread.sleep(1000);
         assertTrue("255.255.255.0".equals(parser.getIpQueue().take().getIp()));
+
+        parser.close();
+        tailReader.close();
 
         writer.close();
         new File("test.log").delete();

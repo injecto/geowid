@@ -17,5 +17,7 @@ public class RuIpResolverTest {
         ResolveRecord result = resolver.resolve("144.206.192.6");
         assertEquals(56.0, Math.ceil(result.getLat()));
         assertEquals(38.0, Math.ceil(result.getLng()));
+
+        resolver.stopService();
     }
 }

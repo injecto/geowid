@@ -22,6 +22,7 @@ public class IpToLocationConverter {
      * @param ipQueue очередь событий
      * @param cacheFilePath кэш-файл для сохранения уже запрошенных IP
      * @param ttl TTL записи в кэше (секунд)
+     * @param maxmindDBFile путь к файлу данных движка Maxmind
      */
     public IpToLocationConverter(LinkedBlockingQueue<Ip> ipQueue, String cacheFilePath, long ttl,
                                  String maxmindDBFile) {
@@ -29,14 +30,14 @@ public class IpToLocationConverter {
         this.cacheFilePath = cacheFilePath;
         this.ttl = ttl;
         maxmindDB = new File(maxmindDBFile);
+        ruIpResolver = new RuIpResolver(cacheFilePath, ttl);
 
-        Thread worker = new Thread(new Runnable() {
+        worker = new Thread(new Runnable() {
             @Override
             public void run() {
                 convert();
             }
-        });
-        worker.setDaemon(true);
+        }, "geowidd_ip_resolver");
         worker.start();
     }
 
@@ -48,6 +49,23 @@ public class IpToLocationConverter {
         return pointsQueue;
     }
 
+    /**
+     * остановить конвертирование
+     * @return true в случае успеха, иначе false
+     */
+    public boolean close() {
+        boolean res = ruIpResolver.stopService();
+
+        worker.interrupt();
+        boolean interrupt = Thread.interrupted();
+        try {
+            worker.join();
+        } catch (InterruptedException e) {
+            return false;
+        }
+        return res;
+    }
+
     private void convert() {
         LookupService lookupService = null;
         try {
@@ -56,8 +74,6 @@ public class IpToLocationConverter {
             logger.fatal("Maxmind DB I/O exception", e);
             return;
         }
-
-        RuIpResolver ruIpResolver = new RuIpResolver(cacheFilePath, ttl);
 
         while (!Thread.currentThread().isInterrupted()) {
             try {
@@ -87,9 +103,12 @@ public class IpToLocationConverter {
     private final LinkedBlockingQueue<Ip> ipQueue;
     private final LinkedBlockingQueue<Point> pointsQueue = new LinkedBlockingQueue<Point>();
     private File maxmindDB;
+    private final RuIpResolver ruIpResolver;
 
     private final String cacheFilePath;
     private final long ttl;
+
+    private final Thread worker;
 
     private static final Logger logger = LogManager.getLogger(IpToLocationConverter.class);
 }

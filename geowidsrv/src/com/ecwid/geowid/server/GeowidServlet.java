@@ -90,6 +90,14 @@ public class GeowidServlet extends HttpServlet {
         }
     }
 
+    @Override
+    public void destroy() {
+        if (!buffer.close())
+            logger.warn("Buffer's thread not die. It's sorrowfully");
+
+        super.destroy();
+    }
+
     private long timeOut;
 
     private final String resultAttribute = "result";
