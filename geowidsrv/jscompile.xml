@@ -2,23 +2,36 @@
 
 <project name="geowidsrv" basedir="." default="compile">
 
+    <property name="debug" value="false"/>
+
+    <taskdef resource="net/sf/antcontrib/antcontrib.properties"/>
+
     <taskdef name="jscomp" classname="com.google.javascript.jscomp.ant.CompileTask"
              classpath="${basedir}/3rd/compiler.jar"/>
 
     <target name="compile">
-        <jscomp compilationLevel="simple" warning="quiet"
-                debug="false" output="${basedir}/web/js/geowid.js">
-            <sources dir="${basedir}/web/src">
-                <file name="geowid-src.js"/>
-            </sources>
-        </jscomp>
+        <if>
+        <equals arg1="${debug}" arg2="false"/>
+        <then>
+            <jscomp compilationLevel="simple" warning="quiet"
+                    debug="false" output="${basedir}/web/js/geowid.js" forceRecompile="true">
+                <sources dir="${basedir}/web/src">
+                    <file name="geowid-src.js"/>
+                </sources>
+            </jscomp>
 
-        <jscomp compilationLevel="simple" warning="quiet"
-                debug="false" output="${basedir}/web/js/rlayer.js">
-            <sources dir="${basedir}/web/src">
-                <file name="rlayer-src.js"/>
-            </sources>
-        </jscomp>
+            <jscomp compilationLevel="simple" warning="quiet"
+                    debug="false" output="${basedir}/web/js/rlayer.js" forceRecompile="true">
+                <sources dir="${basedir}/web/src">
+                    <file name="rlayer-src.js"/>
+                </sources>
+            </jscomp>
+        </then>
+        <else>
+            <copy file="${basedir}/web/src/geowid-src.js" tofile="${basedir}/web/js/geowid.js" overwrite="true"/>
+            <copy file="${basedir}/web/src/rlayer-src.js" tofile="${basedir}/web/js/rlayer.js" overwrite="true"/>
+        </else>
+        </if>
     </target>
 
 </project>

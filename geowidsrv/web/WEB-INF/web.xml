@@ -26,7 +26,7 @@
 
         <init-param>
             <param-name>chunk-size</param-name>
-            <param-value>50</param-value>
+            <param-value>28</param-value>
         </init-param>
     </servlet>
 

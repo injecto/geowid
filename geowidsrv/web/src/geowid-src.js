@@ -1,5 +1,12 @@
-var pointsQueue = [];   // очередь точек для отображения
-var chunkSize = 8;     // размер группы единовременно выводимых точек
+var pointsQueue = [];           // очередь точек для отображения
+var chunkSize = 7;              // размер группы единовременно выводимых точек
+var ptTime = 2000;              // время отображения точки на карте
+var ajaxTimeOut = 3000;         // таймаут AJAX-запроса
+var timeBetweenChunks = 250;    // интервал времени между группами выводимых точек
+// способ вывода маркеров:
+// 'svg' анимированные высококачественные векторные маркеры
+// 'pic' статичные маркеры, заданные картинками
+var viewType = 'svg';
 
 /**
  * объект события карты (точки)
@@ -27,6 +34,8 @@ var mapEvents = {
 };
 
 var generalColor = '#21E9FF'; // цвет вывода всех точек по умолчанию
+
+/**********************************************************************************************************************/
 
 /**
  * Контрол для отображения окна настроек показа точек
@@ -125,36 +134,69 @@ function checkHandler(id) {
  */
 function getPseudoGUID() {
     var s = [];
-    var hexDigits = "0123456789abcdef";
+    var hexDigits = '0123456789abcdef';
     for (var i = 0; i < 36; i++)
         s[i] = hexDigits.substr(Math.floor(Math.random() * 0x10), 1);
 
-    s[14] = "4";
+    s[14] = '4';
     s[19] = hexDigits.substr((s[19] & 0x3) | 0x8, 1);
-    s[8] = s[13] = s[18] = s[23] = "-";
+    s[8] = s[13] = s[18] = s[23] = '-';
 
-    return s.join("");
+    return s.join('');
 }
+
+var SimpleMarker = L.Icon.extend({
+    options: {
+        iconSize: [10, 10],
+        iconAnchor: [5, 5],
+        popupAnchor: [9, 1]
+    }
+});
+
+var blueMarker = new SimpleMarker({ iconUrl: 'pics/blue.png' }),
+    redMarker = new SimpleMarker({ iconUrl: 'pics/red.png' }),
+    greenMarker = new SimpleMarker({ iconUrl: 'pics/green.png' }),
+    yellowMarker = new SimpleMarker({ iconUrl: 'pics/yellow.png' });
 
 /**
  * вывести одну точку
  * @param point точка
- * @param map карта
+ * @param layer слой
  */
-function pt(point, map) {
+function show(point, layer, map) {
     if (pointColor[point.type] === undefined)
         return;
 
-    var p = new R.Pulse(
-        new L.LatLng(point.lat, point.lng),
-        5,
-        {'fill': pointColor[point.type], 'fill-opacity': 0.75, 'stroke-opacity': 0.75 },
-        {'fill': pointColor[point.type], 'fill-opacity': 0.5, 'stroke-opacity': 0 }
-    );
-    map.addLayer(p);
-    setTimeout(function () {
-        map.removeLayer(p);
-    }, 3500);
+    switch (viewType) {
+        case 'svg':
+            layer.pulse(point.lat, point.lng, pointColor[point.type], ptTime);
+            break;
+        case 'pic':
+            var m;
+            if (pointColor._all_flag === true)
+                m = L.marker([point.lat, point.lng], { icon: blueMarker });
+            else
+                switch (point.type) {
+                    case 'def':
+                        m = L.marker([point.lat, point.lng], { icon: redMarker });
+                        break;
+                    case 'mob':
+                        m = L.marker([point.lat, point.lng], { icon: greenMarker });
+                        break;
+                    case 'api':
+                        m = L.marker([point.lat, point.lng], { icon: yellowMarker });
+                        break;
+                    default:
+                        console.log('Unknown marker type "' + point.type + '"');
+                }
+            map.addLayer(m);
+            setTimeout(function () {
+                map.removeLayer(m);
+            }, ptTime);
+            break;
+        default:
+            console.log('Unknown marker view type');
+    }
 }
 
 /**
@@ -169,7 +211,6 @@ function correct(map) {;
 
 $(function () {
     $('#wait').fadeIn('slow');
-    var isFirstLoad = true;
 
     for (var e in mapEvents) {
         $('#view-dialog').append("<label><input type='checkbox' id='"+e+"'>" +
@@ -205,28 +246,50 @@ $(function () {
 
     map.addControl(new L.Control.View());
 
+    var pulseLayer = new R.PulseLayer(100);
+    map.addLayer(pulseLayer);
+
+    var noDataCounter = 0;
+    var flush = false;
+    var flushNum = 0;
+    var url = 'get/?id=' + getPseudoGUID();
+
     (function poll() {
         $.ajax({
-            url: "./get/?id=" + getPseudoGUID(),
+            url: url,
             success: function(points) {
-                if (isFirstLoad) {
-                    $('#wait').fadeOut('slow');
-                    isFirstLoad = false;
-                }
+                flush = true;
+                flushNum = pointsQueue.length;
                 pointsQueue = pointsQueue.concat(points);
+
+                if (pointsQueue.length >= chunkSize) {
+                    noDataCounter = 0;
+                    $('#wait').fadeOut('slow');
+                }
             },
-            dataType: "json",
+            dataType: 'json',
             complete: poll,
-            timeout: 2000,
+            timeout: ajaxTimeOut,
             cache: false
         });
     })();
 
     setInterval(function () {
+        if (flush && flushNum != 0) {
+            flush = false;
+            var chunk = pointsQueue.splice(0, flushNum);
+            for (var i = 0; i < flushNum; i++)
+                show(chunk[i], pulseLayer, map);
+            return;
+        }
         if (pointsQueue.length >= chunkSize) {
             var chunk = pointsQueue.splice(0, chunkSize);
             for (var i = 0; i < chunkSize; i++)
-                pt(chunk[i], map);
+                show(chunk[i], pulseLayer, map);
+        } else {
+            noDataCounter++;
+            if (noDataCounter >= (ptTime/timeBetweenChunks + 1000/timeBetweenChunks))
+                $('#wait').fadeIn('slow');
         }
-    }, 250);
+    }, timeBetweenChunks);
 });

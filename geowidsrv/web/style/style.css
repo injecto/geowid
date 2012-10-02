@@ -30,7 +30,7 @@ html, body, #map {
 }
 
 #message {
-    font-size: 36pt;
+    font-size: 28pt;
     text-align: center;
     color: #ffffff;
     position: absolute;
@@ -60,8 +60,8 @@ html, body, #map {
     background-repeat: no-repeat;
     display: block;
     border-radius: 4px;
-    width: 18px;
-    height: 18px;
+    width: 19px;
+    height: 19px;
     background-color: #fff;
     opacity: 0.5;
 }
