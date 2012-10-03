@@ -10,7 +10,6 @@ import org.apache.logging.log4j.Logger;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.concurrent.LinkedBlockingQueue;
 
 /**
  * Конвертер IP в геолокацию
@@ -19,96 +18,63 @@ public class IpToLocationConverter {
 
     /**
      * ctor
-     * @param ipQueue очередь событий
      * @param cacheFilePath кэш-файл для сохранения уже запрошенных IP
      * @param ttl TTL записи в кэше (секунд)
      * @param maxmindDBFile путь к файлу данных движка Maxmind
      */
-    public IpToLocationConverter(LinkedBlockingQueue<Ip> ipQueue, String cacheFilePath, long ttl,
-                                 String maxmindDBFile) {
-        this.ipQueue = ipQueue;
+    public IpToLocationConverter(String cacheFilePath, long ttl, String maxmindDBFile) throws IOException {
         this.cacheFilePath = cacheFilePath;
         this.ttl = ttl;
         maxmindDB = new File(maxmindDBFile);
-        ruIpResolver = new RuIpResolver(cacheFilePath, ttl);
 
-        worker = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                convert();
-            }
-        }, "geowidd_ip_resolver");
-        worker.start();
-    }
-
-    /**
-     * вернуть очередь геолокаций
-     * @return очередь геолокаций
-     */
-    public LinkedBlockingQueue<Point> getPointsQueue() {
-        return pointsQueue;
-    }
-
-    /**
-     * остановить конвертирование
-     * @return true в случае успеха, иначе false
-     */
-    public boolean close() {
-        boolean res = ruIpResolver.stopService();
-
-        worker.interrupt();
-        boolean interrupt = Thread.interrupted();
-        try {
-            worker.join();
-        } catch (InterruptedException e) {
-            return false;
-        }
-        return res;
-    }
-
-    private void convert() {
-        LookupService lookupService = null;
         try {
             lookupService = new LookupService(maxmindDB, LookupService.GEOIP_MEMORY_CACHE);
         } catch (IOException e) {
             logger.fatal("Maxmind DB I/O exception", e);
-            return;
+            throw e;
         }
+        ruIpResolver = new RuIpResolver(cacheFilePath, ttl);
+    }
 
-        while (!Thread.currentThread().isInterrupted()) {
-            try {
-                Ip ip = ipQueue.take();
-                Location location = lookupService.getLocation(ip.getIp());
+    /**
+     * сконвертировать объект записи в объект карты
+     * @param ip объект записи
+     * @return объект карты или null в слушае невозможности резолвинга
+     */
+    public Point convert(Ip ip) {
+        Location location = lookupService.getLocation(ip.getIp());
 
-                Point point = null;
-                if (null != location) {
-                    if (location.countryCode.equals("RU") || location.countryCode.equals("UA")) {
-                        ResolveRecord record = ruIpResolver.resolve(ip.getIp());
-                        if (null != record)
-                            point = new Point(record.getLat(), record.getLng(), ip.getType());
-                    }
-                    if (null == point)
-                        point = new Point(location.latitude, location.longitude, ip.getType());
-
-                    pointsQueue.put(point);
-                }
-            } catch (InterruptedException e) {
-                break;
+        Point point = null;
+        if (null != location) {
+            if (location.countryCode.equals("RU") || location.countryCode.equals("UA")) {
+                ResolveRecord record = ruIpResolver.resolve(ip.getIp());
+                if (null != record)
+                    point = new Point(record.getLat(), record.getLng(), ip.getType());
             }
-        }
+            if (null == point)
+                point = new Point(location.latitude, location.longitude, ip.getType());
+
+            return point;
+        } else
+            return null;
+    }
+
+    /**
+     * закрыть сервис разрешения IP-адресов
+     */
+    public void closeService() {
+        if (!ruIpResolver.stopService())
+            logger.warn("Can't correct stop IP resolver cache service");
 
         lookupService.close();
     }
 
-    private final LinkedBlockingQueue<Ip> ipQueue;
-    private final LinkedBlockingQueue<Point> pointsQueue = new LinkedBlockingQueue<Point>();
     private File maxmindDB;
     private final RuIpResolver ruIpResolver;
+    private LookupService lookupService;
 
     private final String cacheFilePath;
     private final long ttl;
-
-    private final Thread worker;
 
     private static final Logger logger = LogManager.getLogger(IpToLocationConverter.class);
 }

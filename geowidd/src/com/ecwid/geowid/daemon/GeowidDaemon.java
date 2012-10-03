@@ -2,6 +2,7 @@ package com.ecwid.geowid.daemon;
 
 import com.ecwid.geowid.daemon.settings.Settings;
 import com.ecwid.geowid.daemon.settings.SettingsProvider;
+import com.ecwid.geowid.utils.Point;
 import org.apache.commons.daemon.Daemon;
 import org.apache.commons.daemon.DaemonContext;
 import org.apache.commons.daemon.DaemonInitException;
@@ -31,16 +32,24 @@ public class GeowidDaemon implements Daemon {
         TailReader tailReader = new TailReader(settings.getLogFileCatalog(), settings.getLogFilePattern(),
                 settings.getUpdatePeriod());
 
-        RecordParser parser = new RecordParser(tailReader.getRecordsQueue(), settings.getEvents(), true);
+        RecordParser parser = new RecordParser(settings.getEvents(), true);
 
-        IpToLocationConverter converter = new IpToLocationConverter(parser.getIpQueue(), settings.getCacheFilePath(),
-                settings.getCacheRecordTtl(), args[1]);
+        IpToLocationConverter converter = null;
+        try {
+            converter = new IpToLocationConverter(settings.getCacheFilePath(),
+                    settings.getCacheRecordTtl(), args[1]);
+        } catch (IOException e) {
+            tailReader.close();
+            System.exit(1);
+        }
 
         try {
             openServerSocket();
         } catch (IOException e) {
             logger.fatal("Could not listen on port {}", settings.getPort());
-            return;
+            converter.closeService();
+            tailReader.close();
+            System.exit(2);
         }
 
         Socket clientSocket = null;
@@ -57,13 +66,20 @@ public class GeowidDaemon implements Daemon {
                     reopenServerSocket();
                 } catch (IOException ex) {
                     logger.fatal("Server socket is broken. Shutting down...", ex);
-                    break;
+                    converter.closeService();
+                    tailReader.close();
+                    try {
+                        serverSocket.close();
+                    } catch (IOException exc) {
+                        logger.error("Can't close server socket");
+                    }
+                    System.exit(3);
                 }
                 logger.info("Server socket reopened");
                 continue;
             }
 
-            converter.getPointsQueue().clear();
+            tailReader.getRecordsQueue().clear();
 
             try {
                 out = new ObjectOutputStream(clientSocket.getOutputStream());
@@ -78,8 +94,14 @@ public class GeowidDaemon implements Daemon {
             }
 
             try {
-                while (!Thread.currentThread().isInterrupted())
-                    out.writeObject(converter.getPointsQueue().take());
+                while (!Thread.currentThread().isInterrupted()) {
+                    Ip ip = parser.parse(tailReader.getRecordsQueue().take());
+                    if (null != ip) {
+                        Point pt = converter.convert(ip);
+                        if (null != pt)
+                            out.writeObject(pt);
+                    }
+                }
             } catch (InterruptedException e) {
                 break;
             } catch (IOException e) {
@@ -99,8 +121,9 @@ public class GeowidDaemon implements Daemon {
             }
         }
 
-        if (!(converter.close() && parser.close() && tailReader.close()))
-            logger.warn("Several service threads not die. Sorry");
+        converter.closeService();
+        if (!(tailReader.close()))
+            logger.warn("Tail reader threads not die. Sorry");
 
         try {
             if (null != out)

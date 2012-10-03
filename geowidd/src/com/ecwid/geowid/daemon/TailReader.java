@@ -85,6 +85,10 @@ public class TailReader {
                 } else {
                     slipCounter = 0;
                     recordsQueue.put(line);
+                    if (recordsQueue.size() > maxQueueSize) {
+                        recordsQueue.clear();
+                        logger.info("New records queue is full. I clear it");
+                    }
                 }
             } catch (IOException e) {
                 logger.warn("Log reading some I/O error. Miss one line from log");
@@ -203,6 +207,7 @@ public class TailReader {
     private final int maxSlipNumber = 3;    // количество "промахов", после которого считается, что создан новый лог
     private final long logSearchAttemptPeriod = 100;    // время между попытками поиска лога
     private final int maxLogSearchAttempt = 100;    // максимальное количество попыток поиска лога
+    private final int maxQueueSize = 200;  // максимальный размер очереди новых записей лога
 
     private final LinkedBlockingQueue<String> recordsQueue = new LinkedBlockingQueue<String>();
 

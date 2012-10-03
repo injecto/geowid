@@ -11,7 +11,7 @@
 
         <init-param>
             <param-name>log-stream-host</param-name>
-            <param-value>127.0.0.1</param-value>
+            <param-value>syslog.ecwid.com</param-value>
         </init-param>
 
         <init-param>
@@ -26,7 +26,7 @@
 
         <init-param>
             <param-name>chunk-size</param-name>
-            <param-value>28</param-value>
+            <param-value>16</param-value>
         </init-param>
     </servlet>
 

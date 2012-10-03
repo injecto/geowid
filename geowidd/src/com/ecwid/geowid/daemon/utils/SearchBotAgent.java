@@ -1,6 +1,5 @@
 package com.ecwid.geowid.daemon.utils;
 
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -40,8 +39,7 @@ public class SearchBotAgent {
         if (generalRegExp.toString().isEmpty())
             return false;
 
-        Matcher matcher = pattern.matcher(logRecord);
-        return matcher.matches();
+        return pattern.matcher(logRecord).matches();
     }
 
     private StringBuilder generalRegExp = new StringBuilder();
