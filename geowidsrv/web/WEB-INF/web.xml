@@ -10,13 +10,13 @@
         <servlet-class>com.ecwid.geowid.server.GeowidServlet</servlet-class>
 
         <init-param>
-            <param-name>log-stream-host</param-name>
-            <param-value>syslog.ecwid.com</param-value>
+            <param-name>listen-port</param-name>
+            <param-value>9969</param-value>
         </init-param>
 
         <init-param>
-            <param-name>log-stream-port</param-name>
-            <param-value>9969</param-value>
+            <param-name>pub-key</param-name>
+            <param-value>key.pub</param-value>
         </init-param>
 
         <init-param>
@@ -29,6 +29,11 @@
             <param-value>16</param-value>
         </init-param>
     </servlet>
+    
+    <error-page>
+        <error-code>404</error-code>
+        <location>/404.html</location>
+    </error-page>
 
     <servlet-mapping>
         <servlet-name>GeowidServlet</servlet-name>

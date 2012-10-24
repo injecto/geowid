@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2012, Creative Development LLC
+ * Available under the New BSD license
+ * see http://github.com/injecto/geowid for details
+ */
+
 package com.ecwid.geowid.daemon.settings;
 
 import javax.xml.bind.annotation.XmlElement;

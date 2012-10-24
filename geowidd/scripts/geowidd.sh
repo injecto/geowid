@@ -1,33 +1,45 @@
 #!/bin/sh
 
-ARGS="./geowid_daemon_settings.xml ./GeoLiteCity.dat"
-USER=vio
-OUT=geowidd.log
-ERR=geowidd.log
-PID=geowidd.pid
-JSVC=/usr/bin/jsvc
-CP="./geowidd.jar":"./commons-daemon-1.0.10.jar"
+ARGS=etc/geowid_daemon_settings.xml   # параметры запуска демона
+USER=vio    # пользователь, с правами которого будет запущен демон
+OUT=logs/geowidd.log # файл для перенаправления потока вывода
+ERR=logs/geowidd.log # файл для перенаправления потока ошибок
+PID=resources/geowidd.pid # файл для хранения pid запущенного демона
+JAVA=$JAVA_HOME # каталог расположения Java
+JSVC=/usr/bin/jsvc # исполняемый файл jsvc
+
+# лучше не редактировать, если точно не уверен
+CP="lib/geowidd.jar":"lib/commons-daemon-1.0.10.jar"
 CLASS=com.ecwid.geowid.daemon.GeowidDaemon
-JAVA=/usr/lib/jvm/jdk1.6.0_33
-DEBUG=false
+DEBUG_PARAMS="-Xdebug -Xrunjdwp:transport=dt_socket,address=9967,server=y"
+USAGE_MSG="Usage: geowidd.sh {start [debug]|stop|restart}"
 
 do_exec()
 {
-    if $DEBUG
-    then
-        $JSVC -home $JAVA -Xdebug -Xrunjdwp:transport=dt_socket,address=9967,server=y -user $USER -procname 'geowidd' -server -cp $CP -outfile $OUT -errfile $ERR -pidfile $PID $1 $CLASS $ARGS
-    else
-        $JSVC -home $JAVA -user $USER -procname 'geowidd' -server -cp $CP -outfile $OUT -errfile $ERR -pidfile $PID $1 $CLASS $ARGS
-    fi
+    $JSVC -jvm 'server' -cp $CP -home $JAVA $2 -user $USER -procname 'geowidd' -outfile $OUT -errfile $ERR -pidfile $PID $1 $CLASS $ARGS
 }
 
 case "$1" in
     start)
+        if [ ! -d "logs/" ]; then
+            mkdir logs
+        fi
+
         if [ -f "$PID" ]; then
             echo "Service already running"
             exit 1
         else
-            do_exec
+            if [ "$2" = "debug" ]; then
+                echo "Run in debug mode"
+                do_exec "" "$DEBUG_PARAMS"
+            else
+                if [ -z "$2" ]; then
+                    do_exec
+                else
+                    echo $USAGE_MSG >&2
+                    exit 2
+                fi
+            fi
         fi
             ;;
     stop)
@@ -48,7 +60,7 @@ case "$1" in
         fi
             ;;
     *)
-            echo "Usage: geowidd.sh {start|stop|restart}" >&2
-            exit 3
+            echo $USAGE_MSG >&2
+            exit 2
             ;;
 esac

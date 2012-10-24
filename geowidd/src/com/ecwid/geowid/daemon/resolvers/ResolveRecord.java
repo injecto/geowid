@@ -1,12 +1,21 @@
+/*
+ * Copyright (c) 2012, Creative Development LLC
+ * Available under the New BSD license
+ * see http://github.com/injecto/geowid for details
+ */
+
 package com.ecwid.geowid.daemon.resolvers;
 
-import java.io.Serializable;
+import java.io.*;
 import java.util.Date;
 
 /**
  * Запись в кэше адресов
  */
-public class ResolveRecord implements Serializable {
+public class ResolveRecord implements Externalizable {
+
+    public ResolveRecord() { }
+
     /**
      * ctor
      * @param range диапазон адресов, соответствующих записи
@@ -14,11 +23,11 @@ public class ResolveRecord implements Serializable {
      * @param lng географическая долгота
      * @param expireTime абсолютное время, когда запись будет считаться устаревшей
      */
-    ResolveRecord(IpRange range, float lat, float lng, Date expireTime) {
+    public ResolveRecord(IpRange range, float lat, float lng, Date expireTime) {
         this.range = range;
         this.lat = lat;
         this.lng = lng;
-        this.expireTime = expireTime;
+        this.expireTime = (Date) expireTime.clone();
     }
 
     public IpRange getRange() {
@@ -34,7 +43,23 @@ public class ResolveRecord implements Serializable {
     }
 
     public Date getExpireTime() {
-        return expireTime;
+        return (Date) expireTime.clone();
+    }
+
+    @Override
+    public void writeExternal(ObjectOutput out) throws IOException {
+        out.writeObject(range);
+        out.writeFloat(lat);
+        out.writeFloat(lng);
+        out.writeLong(expireTime.getTime());
+    }
+
+    @Override
+    public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
+        range = (IpRange) in.readObject();
+        lat = in.readFloat();
+        lng = in.readFloat();
+        expireTime = new Date(in.readLong());
     }
 
     @Override
@@ -46,9 +71,8 @@ public class ResolveRecord implements Serializable {
         if (Float.compare(record.lat, lat) != 0) return false;
         if (Float.compare(record.lng, lng) != 0) return false;
         if (expireTime != null ? !expireTime.equals(record.expireTime) : record.expireTime != null) return false;
-        if (range != null ? !range.equals(record.range) : record.range != null) return false;
+        return !(range != null ? !range.equals(record.range) : record.range != null);
 
-        return true;
     }
 
     @Override
@@ -60,8 +84,8 @@ public class ResolveRecord implements Serializable {
         return result;
     }
 
-    private final IpRange range;
-    private final float lat;
-    private final float lng;
-    private final Date expireTime;
+    private IpRange range;
+    private float lat;
+    private float lng;
+    private Date expireTime;
 }

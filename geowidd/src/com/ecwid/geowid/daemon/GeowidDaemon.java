@@ -1,170 +1,67 @@
+/*
+ * Copyright (c) 2012, Creative Development LLC
+ * Available under the New BSD license
+ * see http://github.com/injecto/geowid for details
+ */
+
 package com.ecwid.geowid.daemon;
 
 import com.ecwid.geowid.daemon.settings.Settings;
 import com.ecwid.geowid.daemon.settings.SettingsProvider;
-import com.ecwid.geowid.utils.Point;
 import org.apache.commons.daemon.Daemon;
 import org.apache.commons.daemon.DaemonContext;
-import org.apache.commons.daemon.DaemonInitException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import javax.xml.bind.JAXBException;
 import java.io.IOException;
-import java.io.ObjectOutputStream;
-import java.net.ServerSocket;
-import java.net.Socket;
-import java.net.SocketTimeoutException;
+import java.net.ConnectException;
 
+/**
+ * демон, осуществляющий работу с логом
+ */
 public class GeowidDaemon implements Daemon {
 
-    public static void main(String[] args) {
-        if (args.length != 2) {
-            logger.fatal("Using: geowidd.jar settings_file maxmind_db_file");
-            return;
-        }
-
-        settings = SettingsProvider.getSettings(args[0]);
-        if (null == settings) {
-            logger.fatal("Some error in settings file");
-            return;
-        }
-
-        TailReader tailReader = new TailReader(settings.getLogFileCatalog(), settings.getLogFilePattern(),
-                settings.getUpdatePeriod());
-
-        RecordParser parser = new RecordParser(settings.getEvents(), true);
-
-        IpToLocationConverter converter = null;
-        try {
-            converter = new IpToLocationConverter(settings.getCacheFilePath(),
-                    settings.getCacheRecordTtl(), args[1]);
-        } catch (IOException e) {
-            tailReader.close();
-            System.exit(1);
-        }
-
-        try {
-            openServerSocket();
-        } catch (IOException e) {
-            logger.fatal("Could not listen on port {}", settings.getPort());
-            converter.closeService();
-            tailReader.close();
-            System.exit(2);
-        }
-
-        Socket clientSocket = null;
-        ObjectOutputStream out = null;
-
-        while (!Thread.currentThread().isInterrupted()) {
-            try {
-                clientSocket = serverSocket.accept();
-            } catch (SocketTimeoutException e) {
-                continue;
-            } catch (IOException e) {
-                logger.error("I/O error when waiting for client connection. Try reopen server socket...");
-                try {
-                    reopenServerSocket();
-                } catch (IOException ex) {
-                    logger.fatal("Server socket is broken. Shutting down...", ex);
-                    converter.closeService();
-                    tailReader.close();
-                    try {
-                        serverSocket.close();
-                    } catch (IOException exc) {
-                        logger.error("Can't close server socket");
-                    }
-                    System.exit(3);
-                }
-                logger.info("Server socket reopened");
-                continue;
-            }
-
-            tailReader.getRecordsQueue().clear();
-
-            try {
-                out = new ObjectOutputStream(clientSocket.getOutputStream());
-            } catch (IOException e) {
-                logger.warn("I/O error when creating client output stream. Try again...");
-                try {
-                    clientSocket.close();
-                } catch (IOException ex) {
-                    logger.warn("Can't close client socket. Use new client socket");
-                }
-                continue;
-            }
-
-            try {
-                while (!Thread.currentThread().isInterrupted()) {
-                    Ip ip = parser.parse(tailReader.getRecordsQueue().take());
-                    if (null != ip) {
-                        Point pt = converter.convert(ip);
-                        if (null != pt)
-                            out.writeObject(pt);
-                    }
-                }
-            } catch (InterruptedException e) {
-                break;
-            } catch (IOException e) {
-                logger.warn("I/O error when sending data to client. Re-create client socket...");
-                try {
-                    out.close();
-                } catch (IOException ex) {
-                    logger.warn("Can't close client output stream. Use new stream");
-                }
-
-                try {
-                    clientSocket.close();
-                } catch (IOException ex) {
-                    logger.warn("Can't close client socket. Use new client socket");
-                }
-                continue;
-            }
-        }
-
-        converter.closeService();
-        if (!(tailReader.close()))
-            logger.warn("Tail reader threads not die. Sorry");
-
-        try {
-            if (null != out)
-                out.close();
-
-            if (null != clientSocket && !clientSocket.isClosed())
-                clientSocket.close();
-        } catch (IOException e) {
-            logger.warn("Can't close client socket. Sorry");
-        }
-
-        try {
-            serverSocket.close();
-        } catch (IOException e) {
-            logger.error("Can't close server socket");
-        }
-    }
-
     @Override
-    public void init(DaemonContext daemonContext) throws DaemonInitException, Exception {
+    public void init(DaemonContext daemonContext) throws Exception {
         logger.info("Initialization...");
-        context = daemonContext;
+        daemonArgs = daemonContext.getArguments();
     }
 
     @Override
     public void start() throws Exception {
         logger.info("Starting...");
-        mainThread = new Thread(new Runnable() {
+        daemonThread = new Thread(new Runnable() {
             @Override
             public void run() {
-                main(context.getArguments());
+                while (!Thread.currentThread().isInterrupted()) {
+                    try {
+                        process(daemonArgs);
+                    } catch (IllegalArgumentException e) {
+                        logger.fatal("Init failed. Check settings");
+                        System.exit(ErrorCodes.INIT_ERROR.getCode());
+                    } catch (JAXBException e) {
+                        logger.fatal("Init failed. Incorrect settings file format");
+                        System.exit(ErrorCodes.INIT_ERROR.getCode());
+                    } catch (IOException e) {
+                        logger.fatal("Init failed. Some problem with Maxmind DB file");
+                        System.exit(ErrorCodes.INIT_ERROR.getCode());
+                    } catch (InterruptedException e) {
+                        break;
+                    }
+                }
             }
         }, "geowidd_main");
-        mainThread.start();
+
+        daemonThread.start();
     }
 
     @Override
     public void stop() throws Exception {
         logger.info("Stopping...");
-        mainThread.interrupt();
-        mainThread.join();
+        daemonThread.interrupt();
+        Thread.interrupted();
+        daemonThread.join(joinTime);
     }
 
     @Override
@@ -172,27 +69,71 @@ public class GeowidDaemon implements Daemon {
         logger.info("Done");
     }
 
-    private static void openServerSocket() throws IllegalArgumentException, IOException {
-        if (null == settings)
-            throw new IllegalArgumentException("Need app settings");
+    /**
+     * запустить обработку лога
+     * @param args аргументы запуска
+     * @throws IllegalArgumentException если настройки демона некорректны
+     * @throws JAXBException если файл настроек имеет неверный формат
+     * @throws IOException в случае проблем с MaxmindDB
+     * @throws InterruptedException если процесс был прерван
+     */
+    private void process(String[] args)
+            throws IllegalArgumentException, JAXBException, IOException, InterruptedException {
 
-        serverSocket = new ServerSocket(settings.getPort(), 1);
-        serverSocket.setSoTimeout(250);
-    }
-
-    private static void reopenServerSocket() throws IllegalArgumentException, IOException {
-        try {
-            serverSocket.close();
-        } catch (IOException e) {
-            throw new IOException("Can't close server socket", e);
+        if (args.length != 1) {
+            logger.fatal("Using: java -jar geowidd.jar <settings_file>");
+            throw new IllegalArgumentException("Incorrect args");
         }
-        openServerSocket();
+
+        Settings settings = SettingsProvider.getSettings(args[0]);
+        TailReader reader = new TailReader(settings.getLogFileCatalog(),
+                    settings.getLogFilePattern(), settings.getUpdatePeriod());
+        RecordParser parser = new RecordParser(settings.getEvents(), true);
+        IpToLocationConverter converter = new IpToLocationConverter(settings.getCacheFilePath(),
+                    settings.getCacheRecordTtl(), settings.getResolverDbFilePath());
+        Connection connection = new Connection(settings.getServerHost(), settings.getServerPort(),
+                    settings.getPrivKeyFilePath());
+
+        try {
+            connection.connect();
+            reader.start();
+
+            while (!Thread.currentThread().isInterrupted()) {
+                connection.send(converter.convert(parser.parse(reader.nextRecord())));
+            }
+        } catch (ConnectException e) {
+            // ok
+        } finally {
+            reader.stop();
+            try {
+                connection.close();
+            } catch (IOException e) {
+                // ok
+            }
+        }
     }
 
-    private DaemonContext context;
-    private static Thread mainThread;
-    private static Settings settings;
-    private static ServerSocket serverSocket;
+    /**
+     * коды ошибок при некорректном завершении работы
+     */
+    private static enum ErrorCodes {
+        OK(0),
+        INIT_ERROR(1);
+
+        ErrorCodes(int code) {
+            this.code = code;
+        }
+
+        public int getCode() {
+            return code;
+        }
+
+        private final int code;
+    }
+
+    private String[] daemonArgs;
+    private Thread daemonThread;
+    private static final long joinTime = 3000; // время ожидания корректного завершения потока демона
 
     private static final Logger logger = LogManager.getLogger(GeowidDaemon.class);
 }

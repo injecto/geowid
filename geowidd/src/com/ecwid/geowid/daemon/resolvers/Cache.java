@@ -1,39 +1,40 @@
+/*
+ * Copyright (c) 2012, Creative Development LLC
+ * Available under the New BSD license
+ * see http://github.com/injecto/geowid for details
+ */
+
 package com.ecwid.geowid.daemon.resolvers;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.io.*;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.util.Date;
 import java.util.LinkedList;
+import java.util.Timer;
 
 /**
  * Кэш записей диапазонов IP адресов
  */
-class Cache {
-    Cache(String cacheFilePath) {
-        if ("".equals(cacheFilePath)) {
+public class Cache {
+
+    /**
+     * ctor
+     * @param cacheFilePath путь к файлу кэша. Если передан null или пустая строка -- использует кэш-файл по умолчанию
+     */
+    public Cache(String cacheFilePath) {
+        if (null == cacheFilePath || cacheFilePath.isEmpty()) {
+            this.cacheFilePath = defaultCacheFilePath;
             logger.info("IP resolver cache file not specified. Use {}", this.cacheFilePath);
         } else
             this.cacheFilePath = cacheFilePath;
 
         load();
 
-        flushThread = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    while (!Thread.currentThread().isInterrupted()) {
-                        Thread.sleep(flushPeriod);
-                        flush();
-                    }
-                } catch (InterruptedException e) {
-                    flush();
-                    return;
-                }
-            }
-        }, "geowidd_cache_flush");
-        flushThread.start();
+        flushTimer.schedule(new FlushTask(data, this.cacheFilePath), flushPeriod, flushPeriod);
     }
 
     /**
@@ -66,21 +67,6 @@ class Cache {
     }
 
     /**
-     * отменить задачу периодического сброса кэша на диск
-     * @return true в случае успеха, иначе false
-     */
-    public boolean close() {
-        flushThread.interrupt();
-        boolean interrupt = Thread.interrupted();
-        try {
-            flushThread.join();
-        } catch (InterruptedException e) {
-            return false;
-        }
-        return true;
-    }
-
-    /**
      * загрузить кэш из файла
      */
     @SuppressWarnings("unchecked")
@@ -90,18 +76,17 @@ class Cache {
             objectInputStream = new ObjectInputStream(new FileInputStream(cacheFilePath));
         } catch (IOException e) {
             logger.info("IP resolver cache file not found. Use clear cache");
-            data = new LinkedList<ResolveRecord>();
             return;
         }
 
         try {
-            Object raw = objectInputStream.readObject();
-            if (raw instanceof LinkedList)
-                data = (LinkedList<ResolveRecord>) raw;
+            for (int i = 0; i < objectInputStream.readInt(); i++) {
+                data.add((ResolveRecord) objectInputStream.readObject());
+            }
         } catch (ClassNotFoundException e) {
             logger.warn("IP resolver cache file cannot read. Use clear cache");
         } catch (IOException e) {
-            logger.warn("IP resolver cache file is corrupted. Use clear cache");
+            logger.warn("IP resolver cache file is corrupted. Some data has been lost");
         } finally {
             try {
                 objectInputStream.close();
@@ -111,40 +96,12 @@ class Cache {
         }
     }
 
-    /**
-     * сохранить кэш в файл
-     */
-    private void flush() {
-        new File(cacheFilePath).delete();
+    private static final String defaultCacheFilePath = "ipresolver.cache";
+    private static final long flushPeriod = 5 * 60 * 1000;
 
-        ObjectOutputStream objectOutputStream;
-        try {
-            objectOutputStream = new ObjectOutputStream(new FileOutputStream(cacheFilePath));
-        } catch (IOException e) {
-            logger.warn("Cannot write IP cache file");
-            return;
-        }
-
-        try {
-            synchronized (data) {
-                objectOutputStream.writeObject(data);
-            }
-        } catch (IOException e) {
-            logger.warn("Cannot write IP cache file");
-        } finally {
-            try {
-                objectOutputStream.close();
-            } catch (IOException e) {
-                logger.warn("Some problem with IP resolver cache file stream. Can't close stream");
-            }
-        }
-    }
-
-    private String cacheFilePath = "ipresolver.cache";
-    private long flushPeriod = 15 * 60 * 1000;
-    private LinkedList<ResolveRecord> data = new LinkedList<ResolveRecord>();
-
-    private final Thread flushThread;
+    private final LinkedList<ResolveRecord> data = new LinkedList<ResolveRecord>();
+    private final String cacheFilePath;
+    private final Timer flushTimer = new Timer("cache_flush_thread", true);
 
     private static final Logger logger = LogManager.getLogger(Cache.class);
 }

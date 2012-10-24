@@ -1,8 +1,10 @@
-package com.ecwid.geowid.server; /**
-* Package: com.ecwid
-* User:    vio
-* Date:    20.08.12 16:36
-*/
+/*
+ * Copyright (c) 2012, Creative Development LLC
+ * Available under the New BSD license
+ * see http://github.com/injecto/geowid for details
+ */
+
+package com.ecwid.geowid.server;
 
 /**
  * Слушатель обновления точек на карте

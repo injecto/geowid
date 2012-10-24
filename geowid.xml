@@ -1,4 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ~ Copyright (c) 2012, Creative Development LLC
+  ~ Available under the New BSD license
+  ~ see http://github.com/injecto/geowid for details
+  -->
+
 <project name="geowid" default="all">
   
   
@@ -285,12 +291,6 @@
     </dirset>
   </path>
   
-  <path id="geowidd.module.test.sourcepath">
-    <dirset dir="${module.geowidd.basedir}/geowidd">
-      <include name="test"/>
-    </dirset>
-  </path>
-  
   
   <target name="compile.module.geowidd" depends="compile.module.geowidd.production,compile.module.geowidd.tests" description="Compile module geowidd"/>
   
@@ -312,23 +312,7 @@
     </copy>
   </target>
   
-  <target name="compile.module.geowidd.tests" depends="compile.module.geowidd.production" description="compile module geowidd; test classes" unless="skip.tests">
-    <mkdir dir="${geowidd.testoutput.dir}"/>
-    <javac destdir="${geowidd.testoutput.dir}" debug="${compiler.debug}" nowarn="${compiler.generate.no.warnings}" memorymaximumsize="${compiler.max.memory}" fork="true" executable="${module.jdk.bin.geowidd}/javac">
-      <compilerarg line="${compiler.args.geowidd}"/>
-      <bootclasspath refid="geowidd.module.bootclasspath"/>
-      <classpath refid="geowidd.module.classpath"/>
-      <src refid="geowidd.module.test.sourcepath"/>
-      <patternset refid="excluded.from.compilation.geowidd"/>
-    </javac>
-    
-    <copy todir="${geowidd.testoutput.dir}">
-      <fileset dir="${module.geowidd.basedir}/geowidd/test">
-        <patternset refid="compiler.resources"/>
-        <type type="file"/>
-      </fileset>
-    </copy>
-  </target>
+  <target name="compile.module.geowidd.tests" depends="compile.module.geowidd.production" description="compile module geowidd; test classes" unless="skip.tests"/>
   
   <target name="clean.module.geowidd" description="cleanup module">
     <delete dir="${geowidd.output.dir}"/>
@@ -412,12 +396,6 @@
     </dirset>
   </path>
   
-  <path id="geowidsrv.module.test.sourcepath">
-    <dirset dir="${module.geowidsrv.basedir}/geowidsrv">
-      <include name="test"/>
-    </dirset>
-  </path>
-  
   
   <target name="compile.module.geowidsrv" depends="compile.module.geowidsrv.production,compile.module.geowidsrv.tests" description="Compile module geowidsrv"/>
   
@@ -439,23 +417,7 @@
     </copy>
   </target>
   
-  <target name="compile.module.geowidsrv.tests" depends="compile.module.geowidsrv.production" description="compile module geowidsrv; test classes" unless="skip.tests">
-    <mkdir dir="${geowidsrv.testoutput.dir}"/>
-    <javac destdir="${geowidsrv.testoutput.dir}" debug="${compiler.debug}" nowarn="${compiler.generate.no.warnings}" memorymaximumsize="${compiler.max.memory}" fork="true" executable="${module.jdk.bin.geowidsrv}/javac">
-      <compilerarg line="${compiler.args.geowidsrv}"/>
-      <bootclasspath refid="geowidsrv.module.bootclasspath"/>
-      <classpath refid="geowidsrv.module.classpath"/>
-      <src refid="geowidsrv.module.test.sourcepath"/>
-      <patternset refid="excluded.from.compilation.geowidsrv"/>
-    </javac>
-    
-    <copy todir="${geowidsrv.testoutput.dir}">
-      <fileset dir="${module.geowidsrv.basedir}/geowidsrv/test">
-        <patternset refid="compiler.resources"/>
-        <type type="file"/>
-      </fileset>
-    </copy>
-  </target>
+  <target name="compile.module.geowidsrv.tests" depends="compile.module.geowidsrv.production" description="compile module geowidsrv; test classes" unless="skip.tests"/>
   
   <target name="clean.module.geowidsrv" description="cleanup module">
     <delete dir="${geowidsrv.output.dir}"/>
@@ -477,6 +439,8 @@
     <property name="artifact.output.root" value="${basedir}/out/artifacts/geowidsrv"/>
     <mkdir dir="${artifacts.temp.dir}"/>
     <property name="temp.jar.path.geowidd.jar" value="${artifacts.temp.dir}/geowidd.jar"/>
+    <property name="temp.jar.path.geowidd.jar2" value="${artifacts.temp.dir}/1/geowidd.jar"/>
+    <mkdir dir="${artifacts.temp.dir}/1"/>
     <property name="temp.jar.path.root.war" value="${artifacts.temp.dir}/root.war"/>
   </target>
   
@@ -484,20 +448,8 @@
     <delete dir="${artifact.output.geowidd}"/>
   </target>
   
-  <target name="artifact.geowidd" depends="init.artifacts, artifact.geowidd:jar" description="Build &#39;geowidd&#39; artifact">
+  <target name="artifact.geowidd" depends="init.artifacts, compile.module.geowidd, compile.module.geowid" description="Build &#39;geowidd&#39; artifact">
     <mkdir dir="${artifact.output.geowidd}"/>
-    <copy todir="${artifact.output.geowidd}">
-      <fileset dir="${artifact.temp.output.geowidd:jar}"/>
-    </copy>
-    <copy file="${basedir}/geowidd/resources/geowid_daemon_settings.xml" tofile="${artifact.output.geowidd}/geowid_daemon_settings.xml"/>
-    <copy file="${basedir}/geowidd/scripts/geowidd.sh" tofile="${artifact.output.geowidd}/geowidd.sh"/>
-    <copy file="${basedir}/geowidd/resources/GeoLiteCity.dat" tofile="${artifact.output.geowidd}/GeoLiteCity.dat"/>
-    <copy file="${basedir}/geowidd/3rd/commons-daemon-1.0.10.jar" tofile="${artifact.output.geowidd}/commons-daemon-1.0.10.jar"/>
-  </target>
-  
-  <target name="artifact.geowidd:jar" depends="init.artifacts, compile.module.geowidd, compile.module.geowid" description="Build &#39;geowidd:jar&#39; artifact">
-    <property name="artifact.temp.output.geowidd:jar" value="${artifacts.temp.dir}/geowidd_jar"/>
-    <mkdir dir="${artifact.temp.output.geowidd:jar}"/>
     <jar destfile="${temp.jar.path.geowidd.jar}" duplicate="preserve" filesetmanifest="mergewithoutmain">
       <zipfileset file="${basedir}/geowidd/src/META-INF/MANIFEST.MF" prefix="META-INF"/>
       <zipfileset dir="${geowidd.output.dir}"/>
@@ -508,7 +460,31 @@
       <zipfileset file="${basedir}/geowidd/resources/log4j2.xml"/>
       <zipfileset src="${basedir}/geowidd/3rd/commons-daemon-1.0.10.jar"/>
     </jar>
-    <copy file="${temp.jar.path.geowidd.jar}" tofile="${artifact.temp.output.geowidd:jar}/geowidd.jar"/>
+    <copy file="${basedir}/geowidd/scripts/geowidd.sh" tofile="${artifact.output.geowidd}/geowidd.sh"/>
+    <mkdir dir="${artifact.output.geowidd}/lib"/>
+    <copy file="${basedir}/geowidd/3rd/commons-daemon-1.0.10.jar" tofile="${artifact.output.geowidd}/lib/commons-daemon-1.0.10.jar"/>
+    <copy file="${temp.jar.path.geowidd.jar}" tofile="${artifact.output.geowidd}/lib/geowidd.jar"/>
+    <mkdir dir="${artifact.output.geowidd}/etc"/>
+    <copy file="${basedir}/geowidd/resources/geowid_daemon_settings.xml" tofile="${artifact.output.geowidd}/etc/geowid_daemon_settings.xml"/>
+    <mkdir dir="${artifact.output.geowidd}/resources"/>
+    <copy file="${basedir}/geowidd/resources/GeoLiteCity.dat" tofile="${artifact.output.geowidd}/resources/GeoLiteCity.dat"/>
+    <copy file="${basedir}/geowidd/resources/key" tofile="${artifact.output.geowidd}/resources/key"/>
+  </target>
+  
+  <target name="artifact.geowidd:jar" depends="init.artifacts, compile.module.geowidd, compile.module.geowid" description="Build &#39;geowidd:jar&#39; artifact">
+    <property name="artifact.temp.output.geowidd:jar" value="${artifacts.temp.dir}/geowidd_jar"/>
+    <mkdir dir="${artifact.temp.output.geowidd:jar}"/>
+    <jar destfile="${temp.jar.path.geowidd.jar2}" duplicate="preserve" filesetmanifest="mergewithoutmain">
+      <zipfileset file="${basedir}/geowidd/src/META-INF/MANIFEST.MF" prefix="META-INF"/>
+      <zipfileset dir="${geowidd.output.dir}"/>
+      <zipfileset dir="${geowid.output.dir}"/>
+      <zipfileset src="${basedir}/3rd/log4j-api-2.0-alpha2.jar"/>
+      <zipfileset src="${basedir}/3rd/log4j-core-2.0-alpha2.jar"/>
+      <zipfileset src="${basedir}/geowidd/3rd/maxmindgeoip.jar"/>
+      <zipfileset file="${basedir}/geowidd/resources/log4j2.xml"/>
+      <zipfileset src="${basedir}/geowidd/3rd/commons-daemon-1.0.10.jar"/>
+    </jar>
+    <copy file="${temp.jar.path.geowidd.jar2}" tofile="${artifact.temp.output.geowidd:jar}/geowidd.jar"/>
   </target>
   
   <target name="artifact.root" depends="init.artifacts, compile.module.geowidsrv, compile.module.geowid" description="Build &#39;root&#39; artifact">
@@ -523,6 +499,7 @@
       <zipfileset dir="${geowidsrv.output.dir}" prefix="WEB-INF/classes"/>
       <zipfileset dir="${geowid.output.dir}" prefix="WEB-INF/classes"/>
       <zipfileset file="${basedir}/geowidsrv/resources/log4j2.xml" prefix="WEB-INF/classes"/>
+      <zipfileset file="${basedir}/geowidsrv/resources/key.pub" prefix="WEB-INF/classes"/>
       <zipfileset file="${basedir}/3rd/log4j-core-2.0-alpha2.jar" prefix="WEB-INF/lib"/>
       <zipfileset file="${basedir}/3rd/log4j-api-2.0-alpha2.jar" prefix="WEB-INF/lib"/>
       <zipfileset file="${basedir}/geowidsrv/3rd/gson-2.2.2.jar" prefix="WEB-INF/lib"/>

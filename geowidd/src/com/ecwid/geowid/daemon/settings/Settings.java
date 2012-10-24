@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2012, Creative Development LLC
+ * Available under the New BSD license
+ * see http://github.com/injecto/geowid for details
+ */
+
 package com.ecwid.geowid.daemon.settings;
 
 import javax.xml.bind.annotation.XmlElement;
@@ -31,8 +37,20 @@ public class Settings {
         return cacheRecordTtl;
     }
 
-    public int getPort() {
-        return port;
+    public String getResolverDbFilePath() {
+        return resolverDbFilePath;
+    }
+
+    public String getServerHost() {
+        return serverHost;
+    }
+
+    public int getServerPort() {
+        return serverPort;
+    }
+
+    public String getPrivKeyFilePath() {
+        return privKeyFilePath;
     }
 
     public List<Event> getEvents() {
@@ -49,8 +67,14 @@ public class Settings {
     private String cacheFilePath;
     @XmlElement(name = "ip-resolver-rec-ttl")
     private long cacheRecordTtl;
-    @XmlElement(name = "connection-port")
-    private int port;
+    @XmlElement(name = "ip-resolver-db")
+    private String resolverDbFilePath;
+    @XmlElement(name = "server-host")
+    private String serverHost;
+    @XmlElement(name = "server-port")
+    private int serverPort;
+    @XmlElement(name = "priv-key")
+    private String privKeyFilePath;
     @XmlElementWrapper(name = "events")
     @XmlElement(name = "event")
     private List<Event> events;

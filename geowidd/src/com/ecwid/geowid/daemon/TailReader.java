@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2012, Creative Development LLC
+ * Available under the New BSD license
+ * see http://github.com/injecto/geowid for details
+ */
+
 package com.ecwid.geowid.daemon;
 
 import org.apache.logging.log4j.LogManager;
@@ -9,7 +15,7 @@ import java.util.Comparator;
 import java.util.concurrent.LinkedBlockingQueue;
 
 /**
- * Реализует слежение за обновлением лога
+ * Реализует слежение за обновлением лога. Аналог unix-утилиты tail (с параметром -f)
  */
 public class TailReader {
 
@@ -18,91 +24,58 @@ public class TailReader {
      * @param logFileCatalog путь к каталогу, в котором расположен файл лога
      * @param logFileNamePattern regexp, соответствующий имени файла лога
      * @param updatePeriod период проверки изменений в логе (миллисекунд)
+     * @throws IllegalArgumentException в случае передачи некорректных параметров
      */
-    public TailReader(String logFileCatalog, String logFileNamePattern, long updatePeriod) {
+    public TailReader(String logFileCatalog, String logFileNamePattern, long updatePeriod)
+            throws IllegalArgumentException {
+        if (null == logFileCatalog
+                || null == logFileNamePattern
+                || logFileCatalog.isEmpty()
+                || logFileNamePattern.isEmpty()
+                || updatePeriod <= 0)
+            throw new IllegalArgumentException();
+
         this.logFileCatalog = logFileCatalog;
         this.logFileNamePattern = logFileNamePattern;
         this.updatePeriod = updatePeriod;
-
-        worker = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                collect();
-            }
-        }, "geowidd_tail_reader");
-        worker.start();
     }
 
     /**
-     * вернуть очередь новых записей лога
-     * @return очередь новых записей лога
+     * вернуть следующую новую запись лога
+     * @return запись
+     * @throws InterruptedException если в процессе ожидания новой записи поток был прерван
      */
-    public LinkedBlockingQueue<String> getRecordsQueue() {
-        return recordsQueue;
+    public String nextRecord() throws InterruptedException {
+        return recordsQueue.take();
+    }
+
+    /**
+     * начать чтение лога
+     */
+    public void start() {
+        if (null == worker || !worker.isAlive()) {
+            worker = new Thread(new CollectTask(), "geowidd_tail_reader");
+            worker.start();
+        }
     }
 
     /**
      * остановить чтение лога
+     * Если уже остановлено, то ничего не происходит
      * @return true в случае успеха, иначе false
      */
-    public boolean close() {
+    public boolean stop() {
+        if (null == worker || !worker.isAlive())
+            return true;
+
         worker.interrupt();
-        boolean interrupt = Thread.interrupted();
+        Thread.interrupted();
         try {
             worker.join();
         } catch (InterruptedException e) {
             return false;
         }
         return true;
-    }
-
-    /**
-     * начать сбор новых данных лога
-     */
-    private void collect() {
-        try {
-            prepare();
-        } catch (FileNotFoundException e) {
-            logger.fatal(e.getMessage());
-            return;
-        } catch (InterruptedException e) {
-            return;
-        }
-
-        String line = null;
-        int slipCounter = 0;
-        while (true) {
-            try {
-                line = logReader.readLine();
-                if (null == line) {
-                    if (slipCounter >= maxSlipNumber) {
-                        reopen();
-                        slipCounter = 0;
-                        continue;
-                    }
-                    slipCounter++;
-                    Thread.sleep(updatePeriod);
-                } else {
-                    slipCounter = 0;
-                    recordsQueue.put(line);
-                    if (recordsQueue.size() > maxQueueSize) {
-                        recordsQueue.clear();
-                        logger.info("New records queue is full. I clear it");
-                    }
-                }
-            } catch (IOException e) {
-                logger.warn("Log reading some I/O error. Miss one line from log");
-                continue;
-            } catch (InterruptedException e) {
-                try {
-                    logReader.close();
-                } catch (IOException e1) {
-                    logger.warn("Can't close log stream (file {}). It will no affect, but unpleasantly",
-                            currentLogFile.getAbsolutePath());
-                }
-                break;
-            }
-        }
     }
 
     /**
@@ -118,9 +91,7 @@ public class TailReader {
                     currentLogFile.getAbsolutePath());
         }
 
-        currentLogFile = waitForLog();
-        logger.info("New log opened {}", currentLogFile.getAbsolutePath());
-        logReader = new BufferedReader(new FileReader(currentLogFile));
+        prepare();
     }
 
     /**
@@ -132,7 +103,7 @@ public class TailReader {
         currentLogFile = waitForLog();
         logger.info("Open a log {}", currentLogFile.getAbsolutePath());
         logReader = new BufferedReader(new FileReader(currentLogFile));
-        String line = null;
+        String line;
         do {
             try {
                 line = logReader.readLine();
@@ -140,7 +111,7 @@ public class TailReader {
                 logger.warn("Log reading I/O error");
                 break;
             }
-        } while (null != line);
+        } while (null != line || Thread.currentThread().isInterrupted());
     }
 
     /**
@@ -150,14 +121,13 @@ public class TailReader {
      * @throws InterruptedException если поток исполнения был прерван
      */
     private File waitForLog() throws FileNotFoundException, InterruptedException {
-        File log = null;
+        File log;
         int c = 0;
         do {
             c++;
             log = getLogFile();
             if (null == log) {
                 Thread.sleep(logSearchAttemptPeriod);
-                continue;
             } else {
                 return log;
             }
@@ -174,11 +144,9 @@ public class TailReader {
         File[] files = logCatalog.listFiles(new FileFilter() {
             @Override
             public boolean accept(File pathname) {
-                if (pathname.canRead()
+                return pathname.canRead()
                         && pathname.isFile()
-                        && pathname.getName().matches(logFileNamePattern))
-                    return true;
-                return false;
+                        && pathname.getName().matches(logFileNamePattern);
             }
         });
 
@@ -196,22 +164,69 @@ public class TailReader {
         return files[files.length - 1];
     }
 
-    private final String logFileCatalog,
-                         logFileNamePattern;
+    /**
+     * задача сбора новых данных из лога
+     */
+    private class CollectTask implements Runnable {
 
-    private final long updatePeriod;
+        @Override
+        public void run() {
+            try {
+                prepare();
+            } catch (FileNotFoundException e) {
+                logger.fatal(e.getMessage());
+                return;
+            } catch (InterruptedException e) {
+                return;
+            }
 
-    private BufferedReader logReader;
-    private File currentLogFile;
+            String line;
+            int slipCounter = 0;
+            while (!Thread.currentThread().isInterrupted()) {
+                try {
+                    line = logReader.readLine();
+                    if (null == line) {
+                        if (slipCounter >= maxSlipNumber) {
+                            reopen();
+                            slipCounter = 0;
+                            continue;
+                        }
+                        slipCounter++;
+                        Thread.sleep(updatePeriod);
+                    } else {
+                        slipCounter = 0;
+                        if (recordsQueue.size() >= maxQueueSize)
+                            recordsQueue.poll();
+                        recordsQueue.put(line);
+                    }
+                } catch (IOException e) {
+                    logger.warn("Log reading some I/O error. Miss one line from log");
+                } catch (InterruptedException e) {
+                    break;
+                }
+            }
 
-    private final int maxSlipNumber = 3;    // количество "промахов", после которого считается, что создан новый лог
-    private final long logSearchAttemptPeriod = 100;    // время между попытками поиска лога
-    private final int maxLogSearchAttempt = 100;    // максимальное количество попыток поиска лога
-    private final int maxQueueSize = 200;  // максимальный размер очереди новых записей лога
+            try {
+                logReader.close();
+            } catch (IOException e1) {
+                logger.warn("Can't close log stream (file {}). It will no affect, but unpleasantly",
+                        currentLogFile.getAbsolutePath());
+            }
+        }
+    }
+
+    private static final int maxSlipNumber = 3;    // количество "промахов", после которого считается, что создан новый лог
+    private static final long logSearchAttemptPeriod = 100;    // время между попытками поиска лога
+    private static final int maxLogSearchAttempt = 100;    // максимальное количество попыток поиска лога
+    private static final int maxQueueSize = 200;  // максимальный размер очереди новых записей лога
 
     private final LinkedBlockingQueue<String> recordsQueue = new LinkedBlockingQueue<String>();
-
-    private final Thread worker;
+    private final long updatePeriod;
+    private final String logFileCatalog,
+                         logFileNamePattern;
+    private BufferedReader logReader;
+    private File currentLogFile;
+    private Thread worker = null;
 
     private static final Logger logger = LogManager.getLogger(TailReader.class);
 }

@@ -1,7 +1,8 @@
 .idea/
 *.iml
-3rd/
-geowidd/3rd/
 geowidd/resources/GeoLiteCity.dat
-gewoidsrv/3rd/
+geowidd/resources/key
+geowidsrv/resources/key.pub
 out/
+utils/example.log
+utils/ecwid.log
