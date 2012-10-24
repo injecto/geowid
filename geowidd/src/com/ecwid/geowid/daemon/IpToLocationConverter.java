@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2012, Creative Development LLC
+ * Available under the New BSD license
+ * see http://github.com/injecto/geowid for details
+ */
+
 package com.ecwid.geowid.daemon;
 
 import com.ecwid.geowid.daemon.resolvers.ResolveRecord;
@@ -8,7 +14,6 @@ import com.maxmind.geoip.LookupService;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.io.File;
 import java.io.IOException;
 
 /**
@@ -21,14 +26,16 @@ public class IpToLocationConverter {
      * @param cacheFilePath кэш-файл для сохранения уже запрошенных IP
      * @param ttl TTL записи в кэше (секунд)
      * @param maxmindDBFile путь к файлу данных движка Maxmind
+     * @throws IOException если произошла ошибка при инициализации Maxmind
+     * @throws IllegalArgumentException если переданы некорректные параметры
      */
-    public IpToLocationConverter(String cacheFilePath, long ttl, String maxmindDBFile) throws IOException {
-        this.cacheFilePath = cacheFilePath;
-        this.ttl = ttl;
-        maxmindDB = new File(maxmindDBFile);
+    public IpToLocationConverter(String cacheFilePath, long ttl, String maxmindDBFile)
+            throws IOException, IllegalArgumentException {
+        if (null == maxmindDBFile)
+            throw new IllegalArgumentException();
 
         try {
-            lookupService = new LookupService(maxmindDB, LookupService.GEOIP_MEMORY_CACHE);
+            lookupService = new LookupService(maxmindDBFile, dbMemoryUsage);
         } catch (IOException e) {
             logger.fatal("Maxmind DB I/O exception", e);
             throw e;
@@ -38,43 +45,33 @@ public class IpToLocationConverter {
 
     /**
      * сконвертировать объект записи в объект карты
-     * @param ip объект записи
-     * @return объект карты или null в слушае невозможности резолвинга
+     * @param logEvent объект записи
+     * @return объект карты или null в случае невозможности разрешения геоположения
      */
-    public Point convert(Ip ip) {
-        Location location = lookupService.getLocation(ip.getIp());
+    public Point convert(LogEvent logEvent) {
+        if (null == logEvent)
+            return null;
+
+        Location location = lookupService.getLocation(logEvent.getIp());
 
         Point point = null;
         if (null != location) {
             if (location.countryCode.equals("RU") || location.countryCode.equals("UA")) {
-                ResolveRecord record = ruIpResolver.resolve(ip.getIp());
+                ResolveRecord record = ruIpResolver.resolve(logEvent.getIp());
                 if (null != record)
-                    point = new Point(record.getLat(), record.getLng(), ip.getType());
+                    point = new Point(record.getLat(), record.getLng(), logEvent.getType());
             }
             if (null == point)
-                point = new Point(location.latitude, location.longitude, ip.getType());
+                point = new Point(location.latitude, location.longitude, logEvent.getType());
 
             return point;
         } else
             return null;
     }
 
-    /**
-     * закрыть сервис разрешения IP-адресов
-     */
-    public void closeService() {
-        if (!ruIpResolver.stopService())
-            logger.warn("Can't correct stop IP resolver cache service");
-
-        lookupService.close();
-    }
-
-    private File maxmindDB;
     private final RuIpResolver ruIpResolver;
-    private LookupService lookupService;
-
-    private final String cacheFilePath;
-    private final long ttl;
+    private final LookupService lookupService;
+    private static final int dbMemoryUsage = LookupService.GEOIP_INDEX_CACHE;
 
     private static final Logger logger = LogManager.getLogger(IpToLocationConverter.class);
 }

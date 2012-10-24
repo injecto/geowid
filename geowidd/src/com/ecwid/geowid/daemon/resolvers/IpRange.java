@@ -1,19 +1,28 @@
+/*
+ * Copyright (c) 2012, Creative Development LLC
+ * Available under the New BSD license
+ * see http://github.com/injecto/geowid for details
+ */
+
 package com.ecwid.geowid.daemon.resolvers;
 
-import java.io.Serializable;
+import java.io.*;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 
 /**
  * Диапазон IP адресов
  */
-class IpRange implements Serializable {
+public class IpRange implements Externalizable {
+
+    public IpRange() { }
+
     /**
      * ctor
      * @param range диапазон адресов в формате "x.x.x.x - x.x.x.x"
      * @throws IllegalArgumentException если переданная строка диапазона некорректна
      */
-    IpRange(String range) throws IllegalArgumentException {
+    public IpRange(String range) throws IllegalArgumentException {
         String[] split = range.split("-");
         if (split.length != 2)
             throw new IllegalArgumentException("IP range string needed (x.x.x.x - x.x.x.x)");
@@ -67,6 +76,18 @@ class IpRange implements Serializable {
     }
 
     @Override
+    public void writeExternal(ObjectOutput out) throws IOException {
+        out.writeLong(rawStartIp);
+        out.writeLong(rawEndIp);
+    }
+
+    @Override
+    public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
+        rawStartIp = in.readLong();
+        rawEndIp = in.readLong();
+    }
+
+    @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
@@ -83,6 +104,6 @@ class IpRange implements Serializable {
         return result;
     }
 
-    private final long rawStartIp;
-    private final long rawEndIp;
+    private long rawStartIp;
+    private long rawEndIp;
 }

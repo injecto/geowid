@@ -12,7 +12,7 @@
 .leaflet-overlay-pane svg,
 .leaflet-zoom-box,
 .leaflet-image-layer,
-.leaflet-layer { /* TODO optimize classes */
+.leaflet-layer {
 	position: absolute;
 	}
 .leaflet-container {

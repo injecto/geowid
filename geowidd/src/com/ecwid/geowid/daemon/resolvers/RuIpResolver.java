@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2012, Creative Development LLC
+ * Available under the New BSD license
+ * see http://github.com/injecto/geowid for details
+ */
+
 package com.ecwid.geowid.daemon.resolvers;
 
 import org.apache.logging.log4j.LogManager;
@@ -26,7 +32,7 @@ public class RuIpResolver {
     public RuIpResolver(String cacheFilePath, long cacheRecordTtl) {
         cache = new Cache(cacheFilePath);
 
-        if (cacheRecordTtl < 1 * 24 * 60 * 60) {
+        if (cacheRecordTtl < minTtl) {
             logger.info("Given IP resolver cache's records TTL ({}s) too small. Use default TTL ({}s)",
                     cacheRecordTtl, ttl);
         } else
@@ -36,7 +42,7 @@ public class RuIpResolver {
     /**
      * определить координаты IP адреса
      * @param ip адрес
-     * @return запись кэша для адреса или null в случае евозможности определения
+     * @return запись кэша для адреса или null в случае невозможности определения
      */
     public ResolveRecord resolve(String ip) {
         ResolveRecord record = cache.getRecord(ip);
@@ -44,21 +50,11 @@ public class RuIpResolver {
             return record;
         else {
             record = serviceRequest(ip);
-            if (null == record)
-                return null;
-            else {
+            if (null != record)
                 cache.addRecord(record);
-                return record;
-            }
-        }
-    }
 
-    /**
-     * остановить сервис разрешения IP адресов
-     * @return true в случае успеха, иначе false
-     */
-    public boolean stopService() {
-        return cache.close();
+            return record;
+        }
     }
 
     /**
@@ -108,7 +104,6 @@ public class RuIpResolver {
                     reader.close();
                 } catch (XMLStreamException e) {
                     logger.warn("Some problem with XML stream (can't close)");
-                    return null;
                 }
         }
 
@@ -129,5 +124,7 @@ public class RuIpResolver {
     private final Cache cache;
     private final String serviceUrl = "http://ipgeobase.ru:7020/geo?ip=";
     private long ttl = 7 * 24 * 60 * 60;
+    private static long minTtl = 1 * 24 * 60 * 60;
+
     private static final Logger logger = LogManager.getLogger(RuIpResolver.class);
 }

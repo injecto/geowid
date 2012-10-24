@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <project name="geowidsrv" basedir="." default="compile">
+    <description>
+        Компиляция исходных js-файлов с помощью Google Closure Compiler и помещение их в рабочий каталог
+    </description>
 
     <property name="debug" value="false"/>
 

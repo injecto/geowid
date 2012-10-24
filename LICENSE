@@ -1,0 +1,28 @@
+The files are available under several different licenses.
+
+> The Apache Software License, Version 2.0 (full text is in law/Apache2.0):
+    3rd/log4j-api-2.0-alpha2-javadoc.jar
+    3rd/log4j-api-2.0-alpha2.jar
+    3rd/log4j-core-2.0-alpha2-javadoc.jar
+    3rd/log4j-core-2.0-alpha2.jar
+    geowidd/3rd/commons-daemon-1.0.10-javadoc.jar
+    geowidd/3rd/commons-daemon-1.0.10.jar
+    geowidsrv/3rd/compiler.jar
+    geowidsrv/3rd/gson-2.2.2-javadoc.jar
+    geowidsrv/3rd/gson-2.2.2.jar
+
+> The MIT License (full text is in law/MIT):
+    geowidsrv/web/js/jquery-1.8.2.min.js
+    geowidsrv/web/js/raphael-min.js
+
+> The BSD 2-Clause License (full text is in law/BSD-2-Clause):
+    geowidsrv/web/js/leaflet.js
+    geowidsrv/web/style/leaflet.css
+    geowidsrv/web/style/leaflet.ie.css
+
+> GNU LGPL, Version 2.1 (full text is in law/LGPL2.1):
+    geowidd/3rd/maxmindgeoip.jar (source code on https://github.com/maxmind/geoip-api-java)
+
+> geowidsrv/web/js/rlayer.js and geowidsrv/web/src/rlayer-src.js is licensed under law/rlayer-lic
+
+> other files are licensed under the BSD 3-Clause License (full text is in law/BSD-3-Clause)

@@ -1,14 +1,17 @@
+/*
+ * Copyright (c) 2012, Creative Development LLC
+ * Available under the New BSD license
+ * see http://github.com/injecto/geowid for details
+ */
+
 package com.ecwid.geowid.daemon;
 
 import com.ecwid.geowid.daemon.settings.Event;
-import com.ecwid.geowid.daemon.utils.SearchBotAgent;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 /**
  * Парсер записей лога
@@ -17,41 +20,83 @@ public class RecordParser {
 
     /**
      * ctor
-     * @param events необходимые события
+     * @param events интересующие записи лога (события)
      * @param filterSearchBots true - фильтровать записи от запросов поисковых роботов
+     * @throws IllegalArgumentException если события лога имеют некорректное описание
      */
-    public RecordParser(List<Event> events, boolean filterSearchBots) {
+    public RecordParser(List<Event> events, boolean filterSearchBots) throws IllegalArgumentException {
         for (Event e : events) {
-            patternMap.put(e.getType(), Pattern.compile(e.getPattern()));
-        }
-        kSet = patternMap.keySet();
+            if (null == e.getPattern()
+                    || e.getPattern().isEmpty()
+                    || null == e.getType()
+                    || e.getType().isEmpty())
+                throw new IllegalArgumentException();
 
-        this.filterSearchBots = filterSearchBots;
+            try {
+                if (!filterSearchBots)
+                    matchersMap.put(e.getType(), Pattern.compile(e.getPattern()).matcher(""));
+                else
+                    matchersMap.put(e.getType(), Pattern.compile(e.getPattern() + "(?!.+(?:"
+                            + UserAgentRegexp.any() + "))").matcher(""));
+            } catch (PatternSyntaxException ex) {
+                throw new IllegalArgumentException(ex.getMessage(), ex);
+            }
+        }
+        typesSet = matchersMap.keySet();
     }
 
     /**
      * распарсить запись
      * @param record запись
-     * @return объект, соответствующуй записи, или null в случае отсутствия описания типа записи
+     * @return объект, соответствующуй записи, или null в случае отсутствия соответствия
      */
-    public Ip parse(String record) {
-        for (String e : kSet) {
-            Matcher matcher = patternMap.get(e).matcher(record);
-            if (matcher.matches() && (filterSearchBots ? !agent.isSearchBot(record) : true)) {
-                return new Ip(matcher.group(1), e);
+    public LogEvent parse(String record) {
+        for (String e : typesSet) {
+            Matcher matcher = matchersMap.get(e).reset(record);
+            if (matcher.find()) {
+                return new LogEvent(matcher.group(1), e);
             }
         }
         return null;
     }
 
-    private Map<String, Pattern> patternMap = new HashMap<String, Pattern>();
-    private Set<String> kSet;
+    private Map<String, Matcher> matchersMap = new HashMap<String, Matcher>();
+    private Set<String> typesSet;
 
-    private boolean filterSearchBots = false;
-    private SearchBotAgent agent = new SearchBotAgent()
-            .addAgentRegExp(SearchBotAgent.Google)
-            .addAgentRegExp(SearchBotAgent.Baidu)
-            .addAgentRegExp(SearchBotAgent.Bing)
-            .addAgentRegExp(SearchBotAgent.Yahoo)
-            .addAgentRegExp(SearchBotAgent.Yandex);
+    /**
+     * Регулярное выражение, соответствующее строке User Agent поисковых роботов
+     */
+    private static class UserAgentRegexp {
+
+        /**
+         * вернуть regexp, соответствующий User Agent'у любого наиболее популярного робота
+         * @return regexp
+         */
+        public static String any() {
+            if (null != anyStr)
+                return anyStr;
+
+            StringBuilder stringBuilder = new StringBuilder();
+            Collection<String> expressions = exps.values();
+            Iterator<String> iterator = expressions.iterator();
+            while (iterator.hasNext()) {
+                stringBuilder.append(iterator.next());
+                if (iterator.hasNext())
+                    stringBuilder.append("|");
+            }
+            anyStr = stringBuilder.toString();
+            return anyStr;
+        }
+
+        private static Map<String, String> exps = new HashMap<String, String>();
+        private static String anyStr = null;
+
+        static {
+            exps.put("Google", "Googlebot");
+            exps.put("Yahoo", "Yahoo! Slurp");
+            exps.put("Baidu", "Baiduspider");
+            exps.put("Bing", "bingbot");
+            exps.put("Yandex", "Yandex");
+        }
+    }
 }
