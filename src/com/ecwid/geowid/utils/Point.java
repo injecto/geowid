@@ -75,6 +75,17 @@ public final class Point implements Externalizable {
         return result;
     }
 
+    @Override
+    public String toString() {
+        final StringBuilder sb = new StringBuilder();
+        sb.append("Point");
+        sb.append("{lat=").append(lat);
+        sb.append(", lng=").append(lng);
+        sb.append(", type='").append(type).append('\'');
+        sb.append('}');
+        return sb.toString();
+    }
+
     private float lat;
     private float lng;
     private String type;

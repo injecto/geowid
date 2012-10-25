@@ -28,6 +28,16 @@ public class Event {
         return pattern;
     }
 
+    @Override
+    public String toString() {
+        final StringBuilder sb = new StringBuilder();
+        sb.append("Event");
+        sb.append("{type='").append(type).append('\'');
+        sb.append(", pattern='").append(pattern).append('\'');
+        sb.append('}');
+        return sb.toString();
+    }
+
     @XmlElement(name = "type")
     private String type;
     @XmlElement(name = "pattern")
