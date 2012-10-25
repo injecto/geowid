@@ -52,7 +52,13 @@ public class IpToLocationConverter {
         if (null == logEvent)
             return null;
 
-        Location location = lookupService.getLocation(logEvent.getIp());
+        Location location;
+        try {
+            location = lookupService.getLocation(logEvent.getIp());
+        } catch (ArrayIndexOutOfBoundsException e) {
+            logger.warn("{} (for {})", e.getMessage(), logEvent.toString());
+            return null;
+        }
 
         Point point = null;
         if (null != location) {
