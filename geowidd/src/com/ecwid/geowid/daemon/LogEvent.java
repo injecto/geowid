@@ -24,6 +24,16 @@ public class LogEvent {
         return type;
     }
 
+    @Override
+    public String toString() {
+        final StringBuilder sb = new StringBuilder();
+        sb.append("LogEvent");
+        sb.append("{ip='").append(ip).append('\'');
+        sb.append(", type='").append(type).append('\'');
+        sb.append('}');
+        return sb.toString();
+    }
+
     private final String ip;
     private final String type;
 }

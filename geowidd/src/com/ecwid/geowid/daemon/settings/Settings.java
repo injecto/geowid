@@ -57,6 +57,24 @@ public class Settings {
         return events;
     }
 
+    @Override
+    public String toString() {
+        final StringBuilder sb = new StringBuilder();
+        sb.append("Settings");
+        sb.append("{logFileCatalog='").append(logFileCatalog).append('\'');
+        sb.append(", logFilePattern='").append(logFilePattern).append('\'');
+        sb.append(", updatePeriod=").append(updatePeriod);
+        sb.append(", cacheFilePath='").append(cacheFilePath).append('\'');
+        sb.append(", cacheRecordTtl=").append(cacheRecordTtl);
+        sb.append(", resolverDbFilePath='").append(resolverDbFilePath).append('\'');
+        sb.append(", serverHost='").append(serverHost).append('\'');
+        sb.append(", serverPort=").append(serverPort);
+        sb.append(", privKeyFilePath='").append(privKeyFilePath).append('\'');
+        sb.append(", events=").append(events);
+        sb.append('}');
+        return sb.toString();
+    }
+
     @XmlElement(name = "log-file-catalog")
     private String logFileCatalog;
     @XmlElement(name = "log-file-pattern")
