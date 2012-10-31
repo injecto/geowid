@@ -110,6 +110,10 @@ public class Connection {
         while (!Thread.currentThread().isInterrupted()) {
             try {
                 outputStream.writeObject(point);
+                if (++sendCounter >= resetPeriod) {
+                    outputStream.reset();
+                    sendCounter = 0;
+                }
                 return;
             } catch (IOException e) {
                 connect();
@@ -144,9 +148,11 @@ public class Connection {
 
     private Socket socket = new Socket();
     private ObjectOutputStream outputStream;
+    private int sendCounter = 0;
     private final InetSocketAddress address;
     private final PrivateKey privKey;
     private static final int timeOut = 2000;    // тайм-аут между попытками подключения
+    private static final int resetPeriod = 1000; // период сброса выходного потока (для предотвращения memory leaks)
 
     private static final Logger logger = LogManager.getLogger(Connection.class);
 }
