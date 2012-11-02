@@ -7,9 +7,8 @@
     <ip-resolver-cache-file>resources/resolver.cache</ip-resolver-cache-file>
     <ip-resolver-rec-ttl>604800</ip-resolver-rec-ttl>
     <ip-resolver-db>resources/GeoLiteCity.dat</ip-resolver-db>
-    <server-host>127.0.0.1</server-host>
-    <server-port>9969</server-port>
-    <priv-key>resources/key</priv-key>
+    <server-url>http://127.0.0.1:8080/points/</server-url>
+    <chunk-size>16</chunk-size>
     <events>
         <event>
             <type>def</type>

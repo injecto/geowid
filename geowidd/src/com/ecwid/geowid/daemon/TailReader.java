@@ -33,7 +33,7 @@ public class TailReader {
                 || logFileCatalog.isEmpty()
                 || logFileNamePattern.isEmpty()
                 || updatePeriod <= 0)
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException("Incorrect log reader's initialization parameters");
 
         this.logFileCatalog = logFileCatalog;
         this.logFileNamePattern = logFileNamePattern;

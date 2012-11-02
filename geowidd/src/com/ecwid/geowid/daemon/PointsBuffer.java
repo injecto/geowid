@@ -4,9 +4,8 @@
  * see http://github.com/injecto/geowid for details
  */
 
-package com.ecwid.geowid.server;
+package com.ecwid.geowid.daemon;
 
-import com.ecwid.geowid.utils.Point;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import org.apache.logging.log4j.LogManager;
@@ -24,51 +23,15 @@ public class PointsBuffer {
     /**
      * ctor
      * @param chunkSize размер порции точек для единовременной отправки на фронтэнд
-     * @param provider провайдер точек
      */
-    public PointsBuffer(int chunkSize, PointsProvider provider) {
+    public PointsBuffer(int chunkSize) {
         if (chunkSize <= 0) {
             logger.info("Size of chunk defined incorrect ({}). Use default value ({})", chunkSize, defaultChunkSize );
             this.chunkSize = defaultChunkSize;
         } else
             this.chunkSize = chunkSize;
 
-        this.provider = provider;
-
         chunk = new ArrayList<Point>(chunkSize);
-    }
-
-    /**
-     * начать заполнение буфера
-     */
-    public void fillBuffer() {
-        worker = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                collect();
-            }
-        }, "geowidsrv_points_buffer");
-        worker.start();
-    }
-
-    /**
-     * закрыть буфер
-     * @return true в случае успеха
-     */
-    public boolean close() {
-        if (null == worker || !worker.isAlive())
-            return true;
-
-        worker.interrupt();
-        Thread.interrupted();
-        try {
-            worker.join();
-        } catch (InterruptedException e) {
-            return false;
-        }
-
-        provider.breakConnection();
-        return true;
     }
 
     /**
@@ -90,42 +53,28 @@ public class PointsBuffer {
     }
 
     /**
-     * собрать данные в буфер
+     * добавить точку в буфер
+     * @param point точка
      */
-    private void collect() {
-        try {
-            while (!provider.waitForConnection()) { }
-        } catch (InterruptedException e) {
+    public void addPoint(Point point) {
+        if (null == point)
             return;
-        }
 
-        while (!Thread.currentThread().isInterrupted()) {
-            try {
-                Point point = provider.next();
-                if (null == point)
-                    continue;
+        chunk.add(point);
+        if (chunk.size() >= chunkSize) {
+            String slice = gson.toJson(chunk, new TypeToken<List<Point>>(){}.getType());
+            chunk.clear();
 
-                chunk.add(point);
-                if (chunk.size() >= chunkSize) {
-                    String slice = gson.toJson(chunk, new TypeToken<List<Point>>(){}.getType());
-                    chunk.clear();
-
-                    for (IPointListener listener : listeners)
-                        listener.onSlice(slice);
-                }
-            } catch (InterruptedException e) {
-                return;
-            }
+            for (IPointListener listener : listeners)
+                listener.onSlice(slice);
         }
     }
 
     private final List<Point> chunk;
     private final int chunkSize;
-    private final PointsProvider provider;
 
     private final Gson gson = new Gson();
     private static final int defaultChunkSize = 16;
-    private Thread worker = null;
 
     private final List<IPointListener> listeners = Collections.synchronizedList(new LinkedList<IPointListener>());
 

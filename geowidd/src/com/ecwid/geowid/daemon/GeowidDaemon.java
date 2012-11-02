@@ -14,8 +14,12 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.xml.bind.JAXBException;
+import java.io.DataOutputStream;
 import java.io.IOException;
-import java.net.ConnectException;
+import java.net.HttpURLConnection;
+import java.net.SocketTimeoutException;
+import java.net.URL;
+import java.net.URLEncoder;
 
 /**
  * демон, осуществляющий работу с логом
@@ -38,13 +42,13 @@ public class GeowidDaemon implements Daemon {
                     try {
                         process(daemonArgs);
                     } catch (IllegalArgumentException e) {
-                        logger.fatal("Init failed. Check settings");
+                        logger.fatal(e.getMessage());
                         System.exit(ErrorCodes.INIT_ERROR.getCode());
                     } catch (JAXBException e) {
-                        logger.fatal("Init failed. Incorrect settings file format");
+                        logger.fatal(e.getMessage());
                         System.exit(ErrorCodes.INIT_ERROR.getCode());
                     } catch (IOException e) {
-                        logger.fatal("Init failed. Some problem with Maxmind DB file");
+                        logger.fatal(e.getMessage());
                         System.exit(ErrorCodes.INIT_ERROR.getCode());
                     } catch (InterruptedException e) {
                         break;
@@ -85,31 +89,62 @@ public class GeowidDaemon implements Daemon {
             throw new IllegalArgumentException("Incorrect args");
         }
 
-        Settings settings = SettingsProvider.getSettings(args[0]);
-        TailReader reader = new TailReader(settings.getLogFileCatalog(),
+        final Settings settings = SettingsProvider.getSettings(args[0]);
+        final TailReader reader = new TailReader(settings.getLogFileCatalog(),
                     settings.getLogFilePattern(), settings.getUpdatePeriod());
-        RecordParser parser = new RecordParser(settings.getEvents(), true);
-        IpToLocationConverter converter = new IpToLocationConverter(settings.getCacheFilePath(),
-                    settings.getCacheRecordTtl(), settings.getResolverDbFilePath());
-        Connection connection = new Connection(settings.getServerHost(), settings.getServerPort(),
-                    settings.getPrivKeyFilePath());
+        final RecordParser parser = new RecordParser(settings.getEvents(), true);
+        final IpToLocationConverter converter = new IpToLocationConverter(settings.getCacheFilePath(),
+                    settings.getCacheRecordTtl(), settings.getResolverDB());
+        final PointsBuffer buffer = new PointsBuffer(settings.getChunkSize());
+
+        final URL serverUrl = new URL(settings.getServerUrl());
+
+        buffer.addListener(new IPointListener() {
+            @Override
+            public void onSlice(String slice) {
+                HttpURLConnection connection = null;
+                DataOutputStream outputStream = null;
+                try {
+                    connection = (HttpURLConnection) serverUrl.openConnection();
+                    String urlParams = "points=" + URLEncoder.encode(slice, "utf-8");
+                    connection.setDoOutput(true);
+                    connection.setConnectTimeout(connectionTimeOut);
+                    connection.setRequestMethod("POST");
+                    connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+                    connection.setRequestProperty("charset", "utf-8");
+                    connection.setRequestProperty("Content-Length", Integer.toString(urlParams.getBytes().length));
+
+                    outputStream = new DataOutputStream(connection.getOutputStream());
+                    outputStream.writeBytes(urlParams);
+                    outputStream.flush();
+
+                    if (connection.getResponseCode() != HttpURLConnection.HTTP_OK)
+                        logger.warn("Server not receive data");
+                } catch (SocketTimeoutException e) {
+                    // ok
+                } catch (IOException e) {
+                    // ok
+                } finally {
+                    if (null != outputStream)
+                        try {
+                            outputStream.close();
+                        } catch (IOException e) {
+                            logger.warn("Can't close HTTP output stream");
+                        }
+                    if (null != connection)
+                        connection.disconnect();
+                }
+            }
+        });
+
+        reader.start();
 
         try {
-            connection.connect();
-            reader.start();
-
             while (!Thread.currentThread().isInterrupted()) {
-                connection.send(converter.convert(parser.parse(reader.nextRecord())));
+                buffer.addPoint(converter.convert(parser.parse(reader.nextRecord())));
             }
-        } catch (ConnectException e) {
-            // ok
         } finally {
             reader.stop();
-            try {
-                connection.close();
-            } catch (IOException e) {
-                // ok
-            }
         }
     }
 
@@ -134,6 +169,7 @@ public class GeowidDaemon implements Daemon {
     private String[] daemonArgs;
     private Thread daemonThread;
     private static final long joinTime = 3000; // время ожидания корректного завершения потока демона
+    private static final int connectionTimeOut = 1000;
 
     private static final Logger logger = LogManager.getLogger(GeowidDaemon.class);
 }

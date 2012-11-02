@@ -8,7 +8,6 @@ package com.ecwid.geowid.daemon;
 
 import com.ecwid.geowid.daemon.resolvers.ResolveRecord;
 import com.ecwid.geowid.daemon.resolvers.RuIpResolver;
-import com.ecwid.geowid.utils.Point;
 import com.maxmind.geoip.Location;
 import com.maxmind.geoip.LookupService;
 import org.apache.logging.log4j.LogManager;
@@ -32,7 +31,7 @@ public class IpToLocationConverter {
     public IpToLocationConverter(String cacheFilePath, long ttl, String maxmindDBFile)
             throws IOException, IllegalArgumentException {
         if (null == maxmindDBFile)
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException("Incorrect IP to location converter's initialization parameters");
 
         try {
             lookupService = new LookupService(maxmindDBFile, dbMemoryUsage);

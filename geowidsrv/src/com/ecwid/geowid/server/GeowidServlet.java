@@ -26,45 +26,30 @@ public class GeowidServlet extends HttpServlet {
 
     @Override
     public void init() throws ServletException {
-        String keyFilePath = getInitParameter("pub-key");
-        if (null == keyFilePath) {
-            logger.fatal("Key file path not defined in web.xml");
-            throw new ServletException("Incorrect settings");
-        }
-
-        int port, chunkSize;
         try {
             timeOut = Long.parseLong(getInitParameter("time-out"));
-            port = Integer.parseInt(getInitParameter("listen-port"));
-            chunkSize = Integer.parseInt(getInitParameter("chunk-size"));
-            buffer = new PointsBuffer(chunkSize, new PointsProvider(port, keyFilePath));
         } catch (NumberFormatException e) {
             logger.fatal("Some of parameter in web.xml incorrect specified", e);
             throw new ServletException("Incorrect settings");
-        } catch (IOException e) {
-            logger.fatal(e.getMessage(), e);
-            throw new ServletException("Initialization error");
         }
 
-        buffer.addListener(new IPointListener() {
-            @Override
-            public void onSlice(String slice) {
-                synchronized (continuations) {
-                    for (Continuation continuation : continuations.values()) {
-                        continuation.setAttribute(resultAttribute, slice);
-                        try {
-                            continuation.resume();
-                        } catch (IllegalStateException e) {
-                            // ok
-                        }
-                    }
-                    continuations.clear();
+        logger.info("Servlet initialized");
+    }
+
+    @Override
+    protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        synchronized (continuations) {
+            for (Continuation continuation : continuations.values()) {
+                continuation.setAttribute(resultAttribute, req.getParameter(requestKey));
+                try {
+                    continuation.resume();
+                } catch (IllegalStateException e) {
+                    // ok
                 }
             }
-        });
-
-        buffer.fillBuffer();
-        logger.info("Servlet initialized");
+            continuations.clear();
+            resp.setStatus(HttpServletResponse.SC_OK);
+        }
     }
 
     @Override
@@ -72,7 +57,7 @@ public class GeowidServlet extends HttpServlet {
         String reqId = req.getParameter(idParameterName);
 
         if (null == reqId) {
-            resp.sendError(400, "Request ID needed");
+            resp.sendError(HttpServletResponse.SC_BAD_REQUEST, "Request ID needed");
             logger.info("Request without ID rejected [{}]", req.getRequestURI());
             return;
         }
@@ -89,7 +74,7 @@ public class GeowidServlet extends HttpServlet {
                         continuations.put(reqId, continuation);
                     } catch (IllegalStateException e) {
                         logger.warn("Continuation with reqID={} can't be suspended", reqId);
-                        resp.sendError(500);
+                        resp.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
                     }
                 } else
                 if (continuation.isExpired()) {
@@ -99,7 +84,7 @@ public class GeowidServlet extends HttpServlet {
                     resp.setContentType(contentType);
                     resp.getWriter().println(emptyResult);
                 } else {
-                    resp.sendError(400, "Request ID conflict");
+                    resp.sendError(HttpServletResponse.SC_BAD_REQUEST, "Request ID conflict");
                 }
             }
         } else {
@@ -110,11 +95,6 @@ public class GeowidServlet extends HttpServlet {
 
     @Override
     public void destroy() {
-        if (!buffer.close())
-            logger.warn("Buffer's thread not die. It's sorrowfully");
-
-        super.destroy();
-
         logger.info("Servlet destroyed");
     }
 
@@ -124,9 +104,9 @@ public class GeowidServlet extends HttpServlet {
     private static final String idParameterName = "id";
     private static final String contentType = "application/json;charset=utf-8";
     private static final String emptyResult = "[]";
+    private static final String requestKey = "points";
 
     private final Map<String, Continuation> continuations = new HashMap<String, Continuation>();
-    private transient PointsBuffer buffer;
 
     private static final Logger logger = LogManager.getLogger(GeowidServlet.class);
 }
