@@ -8,8 +8,6 @@ package com.ecwid.geowid.daemon;
 
 import com.ecwid.geowid.daemon.settings.Settings;
 import com.ecwid.geowid.daemon.settings.SettingsProvider;
-import org.apache.commons.daemon.Daemon;
-import org.apache.commons.daemon.DaemonContext;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -24,72 +22,67 @@ import java.net.URLEncoder;
 /**
  * демон, осуществляющий работу с логом
  */
-public class GeowidDaemon implements Daemon {
+public class GeowidDaemon {
 
-    @Override
-    public void init(DaemonContext daemonContext) throws Exception {
-        logger.info("Initialization...");
-        daemonArgs = daemonContext.getArguments();
-    }
+    public static void main(String[] args) {
+        logger.info("Geowid daemon start...");
 
-    @Override
-    public void start() throws Exception {
-        logger.info("Starting...");
+        if (args.length != 1) {
+            logger.fatal("Using: java -jar geowidd.jar <settings_file_path>");
+            return;
+        }
+
+        Thread hookThread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                shutdownHook();
+            }
+        });
+        Runtime.getRuntime().addShutdownHook(hookThread);
+
+        final String settingsFilePath = args[0];
         daemonThread = new Thread(new Runnable() {
             @Override
             public void run() {
-                while (!Thread.currentThread().isInterrupted()) {
-                    try {
-                        process(daemonArgs);
-                    } catch (IllegalArgumentException e) {
-                        logger.fatal(e.getMessage());
-                        System.exit(ErrorCodes.INIT_ERROR.getCode());
-                    } catch (JAXBException e) {
-                        logger.fatal(e.getMessage());
-                        System.exit(ErrorCodes.INIT_ERROR.getCode());
-                    } catch (IOException e) {
-                        logger.fatal(e.getMessage());
-                        System.exit(ErrorCodes.INIT_ERROR.getCode());
-                    } catch (InterruptedException e) {
-                        break;
-                    }
+                try {
+                    process(settingsFilePath);
+                } catch (JAXBException e) {
+                    logger.fatal(e.getMessage());
+                } catch (IOException e) {
+                    logger.fatal(e.getMessage());
+                } catch (InterruptedException e) {
+                    // ok
                 }
             }
-        }, "geowidd_main");
-
+        });
         daemonThread.start();
     }
 
-    @Override
-    public void stop() throws Exception {
-        logger.info("Stopping...");
-        daemonThread.interrupt();
-        Thread.interrupted();
-        daemonThread.join(joinTime);
-    }
-
-    @Override
-    public void destroy() {
-        logger.info("Done");
+    private static void shutdownHook() {
+        logger.info("Shutdown...");
+        if (null != daemonThread && daemonThread.isAlive()) {
+            daemonThread.interrupt();
+            try {
+                daemonThread.join(joinTime);
+            } catch (InterruptedException e) {
+                logger.error("Shutdown hook's thread is interrupted. Daemon thread can be incorrect complete");
+            }
+        }
+        logger.info("done.");
     }
 
     /**
      * запустить обработку лога
-     * @param args аргументы запуска
+     * @param settingsFilePath путь к файлу настроек
      * @throws IllegalArgumentException если настройки демона некорректны
      * @throws JAXBException если файл настроек имеет неверный формат
      * @throws IOException в случае проблем с MaxmindDB
      * @throws InterruptedException если процесс был прерван
      */
-    private void process(String[] args)
+    private static void process(String settingsFilePath)
             throws IllegalArgumentException, JAXBException, IOException, InterruptedException {
 
-        if (args.length != 1) {
-            logger.fatal("Using: java -jar geowidd.jar <settings_file>");
-            throw new IllegalArgumentException("Incorrect args");
-        }
-
-        final Settings settings = SettingsProvider.getSettings(args[0]);
+        final Settings settings = SettingsProvider.getSettings(settingsFilePath);
         final TailReader reader = new TailReader(settings.getLogFileCatalog(),
                     settings.getLogFilePattern(), settings.getUpdatePeriod());
         final RecordParser parser = new RecordParser(settings.getEvents(), true);
@@ -148,26 +141,7 @@ public class GeowidDaemon implements Daemon {
         }
     }
 
-    /**
-     * коды ошибок при некорректном завершении работы
-     */
-    private static enum ErrorCodes {
-        OK(0),
-        INIT_ERROR(1);
-
-        ErrorCodes(int code) {
-            this.code = code;
-        }
-
-        public int getCode() {
-            return code;
-        }
-
-        private final int code;
-    }
-
-    private String[] daemonArgs;
-    private Thread daemonThread;
+    private static Thread daemonThread = null;
     private static final long joinTime = 3000; // время ожидания корректного завершения потока демона
     private static final int connectionTimeOut = 1000;
 
