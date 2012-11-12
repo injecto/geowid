@@ -50,6 +50,14 @@ public class TailReader {
     }
 
     /**
+     * проверка наличия новой записи в очереди
+     * @return true если имеется
+     */
+    public boolean hasNext() {
+        return recordsQueue.size() > 0;
+    }
+
+    /**
      * начать чтение лога
      */
     public void start() {

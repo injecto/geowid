@@ -23,7 +23,7 @@ serviceUser="vio"                                           # OS user name for t
 serviceGroup="vio"                                          # OS group name for the service
 applDir="./"                                                # home directory of the service application
 serviceUserHome="/home/$serviceUser"                        # home directory of the service user
-serviceLogFile="$serviceNameLo.log"                    # log file for StdOut/StdErr
+serviceLogFile="$serviceNameLo.log"                         # log file for StdOut/StdErr
 maxShutdownTime=5                                           # maximum number of seconds to wait for the daemon to terminate normally
 pidFile="resources/$serviceNameLo.pid"                      # name of PID file (PID = process ID number)
 javaCommand="java"                                          # name of the Java launcher without the path
