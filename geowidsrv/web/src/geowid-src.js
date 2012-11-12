@@ -1,13 +1,12 @@
-var pointsQueue = [];           // очередь точек для отображения
 var chunkSize = 4;              // размер группы единовременно выводимых точек
-var ptTime = 2000;              // время отображения точки на карте
-var ajaxTimeOut = 3000;         // таймаут AJAX-запроса
 var timeBetweenChunks = 250;    // интервал времени между группами выводимых точек
+var ajaxTimeOut = 3000;         // таймаут AJAX-запроса
 // способ вывода маркеров:
 // 'svg' анимированные высококачественные векторные маркеры
 // 'pic' статичные маркеры, заданные картинками
-// 'anim' анимированные gif-маркеры
 var viewType = 'svg';
+
+var pointsQueue = [];
 
 /**
  * объект события карты (точки)
@@ -159,19 +158,6 @@ var blueMarker = new SimpleMarker({ iconUrl: 'pics/blue.png' }),
     greenMarker = new SimpleMarker({ iconUrl: 'pics/green.png' }),
     yellowMarker = new SimpleMarker({ iconUrl: 'pics/yellow.png' });
 
-var AnimMarker = L.Icon.extend({
-    options: {
-        iconSize: [26, 26],
-        iconAnchor: [13, 13],
-        popupAnchor: [25, 1]
-    }
-});
-
-var blueAnimMarker = new AnimMarker({ iconUrl: 'pics/blue.gif' }),
-    redAnimMarker = new AnimMarker({ iconUrl: 'pics/red.gif' }),
-    greenAnimMarker = new AnimMarker({ iconUrl: 'pics/green.gif' }),
-    yellowAnimMarker = new AnimMarker({ iconUrl: 'pics/yellow.gif' });
-
 /**
  * вывести одну точку
  * @param point точка
@@ -183,7 +169,7 @@ function show(point, layer, map) {
 
     switch (viewType) {
         case 'svg':
-            layer.pulse(point.lat, point.lng, pointColor[point.type], ptTime);
+            layer.pulse(point.lat, point.lng, pointColor[point.type]);
             break;
         case 'pic':
             var m;
@@ -206,30 +192,7 @@ function show(point, layer, map) {
             map.addLayer(m);
             setTimeout(function () {
                 map.removeLayer(m);
-            }, ptTime);
-            break;
-        case 'anim':
-            var m;
-            if (pointColor._all_flag === true)
-                m = L.marker([point.lat, point.lng], { icon: blueAnimMarker });
-            else
-                switch (point.type) {
-                    case 'def':
-                        m = L.marker([point.lat, point.lng], { icon: redAnimMarker });
-                        break;
-                    case 'mob':
-                        m = L.marker([point.lat, point.lng], { icon: greenAnimMarker });
-                        break;
-                    case 'api':
-                        m = L.marker([point.lat, point.lng], { icon: yellowAnimMarker });
-                        break;
-                    default:
-                        console.log('Unknown marker type "' + point.type + '"');
-                }
-            map.addLayer(m);
-            setTimeout(function () {
-                map.removeLayer(m);
-            }, ptTime);
+            }, 7000);
             break;
         default:
             console.log('Unknown marker view type');
@@ -264,7 +227,8 @@ $(function () {
     pointColor._all();
 
     var map = L.map('map', {
-        zoomControl: false
+        zoomControl: false,
+        worldCopyJump: false
     }).fitWorld();
 
     correct(map);
@@ -325,7 +289,7 @@ $(function () {
                 show(chunk[i], pulseLayer, map);
         } else {
             noDataCounter++;
-            if (noDataCounter >= (ptTime/timeBetweenChunks + 1000/timeBetweenChunks))
+            if (noDataCounter >= 8000/timeBetweenChunks)
                 $('#wait').fadeIn('slow');
         }
     }, timeBetweenChunks);

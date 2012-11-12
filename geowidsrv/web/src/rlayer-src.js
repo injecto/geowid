@@ -116,7 +116,7 @@ R.PulseLayer = R.Layer.extend({
             );
     },
 
-    pulse: function (lat, lng, color, time) {
+    pulse: function (lat, lng, color) {
         var pt = this._pool.pop();
         if (pt === undefined) {
             this._add(this._addNum);
@@ -135,9 +135,10 @@ R.PulseLayer = R.Layer.extend({
 
         pt.point.animate({
             '0%': { transform: 's0.01' },
-            '10%': { transform: 's1', opacity: 0.85, easing: 'backOut' },
+            '5%': { transform: 's1', opacity: 0.85, easing: 'backOut' },
+            '90%': { },
             '100%': { transform: 's0.01', opacity: 0 }
-        }, time, function () {
+        }, 7000, function () {
             this._pool.push(pt);
             this._used.splice(index, 1);
         });
@@ -145,14 +146,14 @@ R.PulseLayer = R.Layer.extend({
         pt.wave.animate({
             '0%': { transform: 's0.01', opacity: 0.85 },
             '100%': { transform: 's2', opacity: 0, easing: '<' }
-        }, time*0.5);
+        }, 1000);
     },
 
 	initialize: function(poolSize, options) {
 		R.Layer.prototype.initialize.call(this, options);
 
         this._poolSize = poolSize;
-		this._radius = 5;
+		this._radius = 4;
         this._addNum = 10;
 	},
 
