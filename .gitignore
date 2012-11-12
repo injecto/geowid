@@ -1,8 +1,6 @@
 .idea/
 *.iml
 geowidd/resources/GeoLiteCity.dat
-geowidd/resources/key
-geowidsrv/resources/key.pub
 out/
 utils/example.log
 utils/ecwid.log

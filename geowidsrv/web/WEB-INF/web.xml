@@ -10,23 +10,13 @@
         <servlet-class>com.ecwid.geowid.server.GeowidServlet</servlet-class>
 
         <init-param>
-            <param-name>listen-port</param-name>
-            <param-value>9969</param-value>
-        </init-param>
-
-        <init-param>
-            <param-name>pub-key</param-name>
-            <param-value>key.pub</param-value>
-        </init-param>
-
-        <init-param>
             <param-name>time-out</param-name>
             <param-value>2000</param-value>
         </init-param>
 
         <init-param>
-            <param-name>chunk-size</param-name>
-            <param-value>16</param-value>
+            <param-name>gzip</param-name>
+            <param-value>true</param-value>
         </init-param>
     </servlet>
     
@@ -39,6 +29,11 @@
         <servlet-name>GeowidServlet</servlet-name>
         <url-pattern>/get/*</url-pattern>
     </servlet-mapping>
+    
+    <servlet-mapping>
+        <servlet-name>GeowidServlet</servlet-name>
+        <url-pattern>/points/</url-pattern>
+    </servlet-mapping>
 
     <filter>
         <filter-name>GzipFilter</filter-name>
@@ -46,14 +41,12 @@
 
         <init-param>
             <param-name>mimeTypes</param-name>
-            <param-value>
-                text/html,text/plain,text/xml,application/xhtml+xml,text/css,application/javascript,image/png,image/gif,application/json
-            </param-value>
+            <param-value>text/html,text/plain,text/xml,application/xhtml+xml,text/css,application/javascript,image/png,image/gif,application/json</param-value>
         </init-param>
     </filter>
     
     <filter-mapping>
         <filter-name>GzipFilter</filter-name>
-        <url-pattern>/*</url-pattern>
+        <url-pattern>*</url-pattern>
     </filter-mapping>
 </web-app>

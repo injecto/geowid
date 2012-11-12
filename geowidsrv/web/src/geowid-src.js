@@ -1,13 +1,13 @@
-var pointsQueue = [];           // очередь точек для отображения
 var chunkSize = 4;              // размер группы единовременно выводимых точек
-var ptTime = 2000;              // время отображения точки на карте
-var ajaxTimeOut = 3000;         // таймаут AJAX-запроса
 var timeBetweenChunks = 250;    // интервал времени между группами выводимых точек
+var ajaxTimeOut = 3000;         // таймаут AJAX-запроса
 // способ вывода маркеров:
 // 'svg' анимированные высококачественные векторные маркеры
 // 'pic' статичные маркеры, заданные картинками
 // 'anim' анимированные gif-маркеры
 var viewType = 'svg';
+
+var pointsQueue = [];
 
 /**
  * объект события карты (точки)
@@ -183,7 +183,7 @@ function show(point, layer, map) {
 
     switch (viewType) {
         case 'svg':
-            layer.pulse(point.lat, point.lng, pointColor[point.type], ptTime);
+            layer.pulse(point.lat, point.lng, pointColor[point.type]);
             break;
         case 'pic':
             var m;
@@ -206,7 +206,7 @@ function show(point, layer, map) {
             map.addLayer(m);
             setTimeout(function () {
                 map.removeLayer(m);
-            }, ptTime);
+            }, 7000);
             break;
         case 'anim':
             var m;
@@ -264,7 +264,8 @@ $(function () {
     pointColor._all();
 
     var map = L.map('map', {
-        zoomControl: false
+        zoomControl: false,
+        worldCopyJump: false
     }).fitWorld();
 
     correct(map);
@@ -325,7 +326,7 @@ $(function () {
                 show(chunk[i], pulseLayer, map);
         } else {
             noDataCounter++;
-            if (noDataCounter >= (ptTime/timeBetweenChunks + 1000/timeBetweenChunks))
+            if (noDataCounter >= 8000/timeBetweenChunks)
                 $('#wait').fadeIn('slow');
         }
     }, timeBetweenChunks);

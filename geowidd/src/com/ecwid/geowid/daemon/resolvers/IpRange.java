@@ -33,6 +33,9 @@ public class IpRange implements Externalizable {
         } catch (UnknownHostException e) {
             throw new IllegalArgumentException("IP range string needed (x.x.x.x - x.x.x.x)", e);
         }
+
+        if (rawStartIp > rawEndIp)
+            throw new IllegalArgumentException("IP range incorrect");
     }
 
     /**

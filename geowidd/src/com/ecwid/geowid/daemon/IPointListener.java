@@ -4,7 +4,7 @@
  * see http://github.com/injecto/geowid for details
  */
 
-package com.ecwid.geowid.server;
+package com.ecwid.geowid.daemon;
 
 /**
  * Слушатель обновления точек на карте

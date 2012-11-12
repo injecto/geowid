@@ -30,7 +30,7 @@ public class RecordParser {
                     || e.getPattern().isEmpty()
                     || null == e.getType()
                     || e.getType().isEmpty())
-                throw new IllegalArgumentException();
+                throw new IllegalArgumentException("Incorrect records parser's initialization parameters");
 
             try {
                 if (!filterSearchBots)

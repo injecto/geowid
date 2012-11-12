@@ -33,7 +33,7 @@ public class TailReader {
                 || logFileCatalog.isEmpty()
                 || logFileNamePattern.isEmpty()
                 || updatePeriod <= 0)
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException("Incorrect log reader's initialization parameters");
 
         this.logFileCatalog = logFileCatalog;
         this.logFileNamePattern = logFileNamePattern;
@@ -47,6 +47,14 @@ public class TailReader {
      */
     public String nextRecord() throws InterruptedException {
         return recordsQueue.take();
+    }
+
+    /**
+     * проверка наличия новой записи в очереди
+     * @return true если имеется
+     */
+    public boolean hasNext() {
+        return recordsQueue.size() > 0;
     }
 
     /**

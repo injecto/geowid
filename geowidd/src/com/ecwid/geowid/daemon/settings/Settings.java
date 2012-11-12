@@ -37,20 +37,16 @@ public class Settings {
         return cacheRecordTtl;
     }
 
-    public String getResolverDbFilePath() {
-        return resolverDbFilePath;
+    public String getResolverDB() {
+        return resolverDB;
     }
 
-    public String getServerHost() {
-        return serverHost;
+    public String getServerUrl() {
+        return serverUrl;
     }
 
-    public int getServerPort() {
-        return serverPort;
-    }
-
-    public String getPrivKeyFilePath() {
-        return privKeyFilePath;
+    public int getChunkSize() {
+        return chunkSize;
     }
 
     public List<Event> getEvents() {
@@ -66,10 +62,9 @@ public class Settings {
         sb.append(", updatePeriod=").append(updatePeriod);
         sb.append(", cacheFilePath='").append(cacheFilePath).append('\'');
         sb.append(", cacheRecordTtl=").append(cacheRecordTtl);
-        sb.append(", resolverDbFilePath='").append(resolverDbFilePath).append('\'');
-        sb.append(", serverHost='").append(serverHost).append('\'');
-        sb.append(", serverPort=").append(serverPort);
-        sb.append(", privKeyFilePath='").append(privKeyFilePath).append('\'');
+        sb.append(", resolverDB='").append(resolverDB).append('\'');
+        sb.append(", serverUrl='").append(serverUrl).append('\'');
+        sb.append(", chunkSize=").append(chunkSize);
         sb.append(", events=").append(events);
         sb.append('}');
         return sb.toString();
@@ -86,13 +81,11 @@ public class Settings {
     @XmlElement(name = "ip-resolver-rec-ttl")
     private long cacheRecordTtl;
     @XmlElement(name = "ip-resolver-db")
-    private String resolverDbFilePath;
-    @XmlElement(name = "server-host")
-    private String serverHost;
-    @XmlElement(name = "server-port")
-    private int serverPort;
-    @XmlElement(name = "priv-key")
-    private String privKeyFilePath;
+    private String resolverDB;
+    @XmlElement(name = "server-url")
+    private String serverUrl;
+    @XmlElement(name = "chunk-size")
+    private int chunkSize;
     @XmlElementWrapper(name = "events")
     @XmlElement(name = "event")
     private List<Event> events;
