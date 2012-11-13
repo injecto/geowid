@@ -4,7 +4,6 @@ var ajaxTimeOut = 3000;         // таймаут AJAX-запроса
 // способ вывода маркеров:
 // 'svg' анимированные высококачественные векторные маркеры
 // 'pic' статичные маркеры, заданные картинками
-// 'anim' анимированные gif-маркеры
 var viewType = 'svg';
 
 var pointsQueue = [];
@@ -159,19 +158,6 @@ var blueMarker = new SimpleMarker({ iconUrl: 'pics/blue.png' }),
     greenMarker = new SimpleMarker({ iconUrl: 'pics/green.png' }),
     yellowMarker = new SimpleMarker({ iconUrl: 'pics/yellow.png' });
 
-var AnimMarker = L.Icon.extend({
-    options: {
-        iconSize: [26, 26],
-        iconAnchor: [13, 13],
-        popupAnchor: [25, 1]
-    }
-});
-
-var blueAnimMarker = new AnimMarker({ iconUrl: 'pics/blue.gif' }),
-    redAnimMarker = new AnimMarker({ iconUrl: 'pics/red.gif' }),
-    greenAnimMarker = new AnimMarker({ iconUrl: 'pics/green.gif' }),
-    yellowAnimMarker = new AnimMarker({ iconUrl: 'pics/yellow.gif' });
-
 /**
  * вывести одну точку
  * @param point точка
@@ -207,29 +193,6 @@ function show(point, layer, map) {
             setTimeout(function () {
                 map.removeLayer(m);
             }, 7000);
-            break;
-        case 'anim':
-            var m;
-            if (pointColor._all_flag === true)
-                m = L.marker([point.lat, point.lng], { icon: blueAnimMarker });
-            else
-                switch (point.type) {
-                    case 'def':
-                        m = L.marker([point.lat, point.lng], { icon: redAnimMarker });
-                        break;
-                    case 'mob':
-                        m = L.marker([point.lat, point.lng], { icon: greenAnimMarker });
-                        break;
-                    case 'api':
-                        m = L.marker([point.lat, point.lng], { icon: yellowAnimMarker });
-                        break;
-                    default:
-                        console.log('Unknown marker type "' + point.type + '"');
-                }
-            map.addLayer(m);
-            setTimeout(function () {
-                map.removeLayer(m);
-            }, ptTime);
             break;
         default:
             console.log('Unknown marker view type');
